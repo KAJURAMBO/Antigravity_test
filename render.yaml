@@ -10,12 +10,11 @@ services:
         sync: false # You will set this in the Render dashboard
 
   # Frontend Dashboard
-  - type: web
+  - type: static
     name: todo-frontend
-    env: static
     rootDir: frontend
     buildCommand: npm run build
-    publishDir: dist
+    staticPublishDir: dist
     envVars:
       - key: VITE_API_URL
         fromService:
