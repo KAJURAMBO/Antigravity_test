@@ -10,4 +10,5 @@ dependencies = [
     "pandas>=3.0.0",
     "sqlmodel>=0.0.31",
     "uvicorn>=0.40.0",
+    "psycopg2-binary>=2.9.10",
 ]
