@@ -12,10 +12,10 @@ services:
   # Frontend Dashboard
   - type: web
     name: todo-frontend
-    runtime: static
+    env: static
     rootDir: frontend
     buildCommand: npm run build
-    publishDir: dist
+    staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
         fromService:
