@@ -377,8 +377,8 @@ function App() {
                     </div>
                   )}
                   <div className="hidden sm:block">
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none mb-0.5">{user.full_name || 'User'}</p>
-                    <p className="text-[9px] font-bold text-white/20 leading-none truncate max-w-[100px]">{user.email}</p>
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none mb-0.5">Operator</p>
+                    <p className="text-xs font-bold text-white leading-none truncate max-w-[100px]">{user.full_name || user.email}</p>
                   </div>
                   <button 
                     onClick={handleLogout}
