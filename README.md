@@ -26,6 +26,14 @@ If you want to run this locally using the cloud database:
 powershell -ExecutionPolicy Bypass -File .\run.ps1
 ```
 
+### 🧪 Local Testing (Multi-Profile)
+
+To test the application locally without Google login:
+
+1. Run the app using the command above.
+2. Scroll to the **"Developer Access"** section at the bottom of the login screen.
+3. Enter `AlphaUser` (or any name) and press **Enter** to instantly log in to a unique test profile.
+
 ## ✨ Cloud Features
 
 - **Global Persistence:** Powered by Aiven PostgreSQL—your tasks are safe anywhere.
