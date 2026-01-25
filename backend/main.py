@@ -91,6 +91,28 @@ async def google_auth(
     return {"access_token": access_token, "token_type": "bearer", "user": user}
 
 
+class DevAuthRequest(BaseModel):
+    username: str
+
+
+@app.post("/auth/dev")
+async def dev_auth(request: DevAuthRequest, session: Session = Depends(get_session)):
+    # This is ONLY for local development testing
+    google_id = f"dev_user_{request.username.lower()}"
+    email = f"{request.username.lower()}@dev.local"
+    name = f"Test Profile: {request.username}"
+
+    user = session.exec(select(User).where(User.google_id == google_id)).first()
+    if not user:
+        user = User(google_id=google_id, email=email, full_name=name)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+    access_token = create_access_token(data={"sub": google_id})
+    return {"access_token": access_token, "token_type": "bearer", "user": user}
+
+
 @app.get("/users/me", response_model=UserRead)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user

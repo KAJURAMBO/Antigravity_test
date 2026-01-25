@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon } from 'lucide-react'
+import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon, X } from 'lucide-react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { 
   AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -125,6 +125,25 @@ function App() {
     }
   }
 
+  const handleDevLogin = async (username: string) => {
+    setAuthLoading(true)
+    try {
+      const response = await fetch(`${API_URL}/auth/dev`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      })
+      const data = await response.json()
+      localStorage.setItem('token', data.access_token)
+      setToken(data.access_token)
+      setUser(data.user)
+    } catch (error) {
+      console.error('Dev login failed:', error)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
   const handleLogout = () => {
     googleLogout()
     localStorage.removeItem('token')
@@ -212,6 +231,7 @@ function App() {
   const [profileSaving, setProfileSaving] = useState(false)
   const [editingName, setEditingName] = useState('')
   const [editingBio, setEditingBio] = useState('')
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     if (user) {
@@ -219,6 +239,11 @@ function App() {
       setEditingBio(user.bio || '')
     }
   }, [user])
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
 
   const handleUpdateProfile = async () => {
     if (!user) return
@@ -232,10 +257,12 @@ function App() {
         })
       })
       setUser(data)
+      showToast('Profile updated successfully! ✨')
     } catch (error) {
       console.error('Error updating profile:', error)
+      showToast('Failed to update profile.', 'error')
     } finally {
-      setProfileSaving(true)
+      setProfileSaving(false)
     }
   }
 
@@ -254,8 +281,10 @@ function App() {
       })
       const data = await response.json()
       setUser({ ...user!, picture: data.picture_url })
+      showToast('Avatar updated! 📸')
     } catch (error) {
       console.error('Error uploading picture:', error)
+      showToast('Upload failed.', 'error')
     }
   }
 
@@ -304,6 +333,23 @@ function App() {
             />
             <p className="text-xs text-muted-foreground uppercase tracking-widest font-black opacity-30">Secure Google Authentication</p>
           </div>
+
+          {window.location.hostname === 'localhost' && (
+            <div className="pt-8 border-t border-white/5 space-y-4">
+              <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Developer Access</h3>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Test Username"
+                  className="input-premium h-12 text-sm text-center"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') handleDevLogin((e.target as HTMLInputElement).value)
+                  }}
+                />
+              </div>
+              <p className="text-[9px] text-white/20 italic">Type a name and press Enter to simulate a second profile locally.</p>
+            </div>
+          )}
         </motion.div>
       </div>
     )
@@ -404,6 +450,33 @@ function App() {
             </div>
           </div>
         </div>
+
+        {/* Global Notifications inside Profile */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.9 }}
+              className={`fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] px-6 py-4 rounded-2xl border flex items-center gap-4 shadow-2xl min-w-[300px] justify-between ${
+                toast.type === 'success' 
+                ? 'bg-[#121212] border-green-500/30 text-green-500' 
+                : 'bg-[#121212] border-red-500/30 text-red-500'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                {toast.type === 'success' ? <CheckCircle2 size={18} /> : <Clock size={18} className="rotate-45" />}
+                <span className="text-xs font-black uppercase tracking-widest text-white">{toast.message}</span>
+              </div>
+              <button 
+                onClick={() => setToast(null)}
+                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X size={14} className="text-white/40" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     )
   }
@@ -658,6 +731,33 @@ function App() {
           </div>
         </main>
       </div>
+
+      {/* Global Notifications */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className={`fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] px-6 py-4 rounded-2xl border flex items-center gap-4 shadow-2xl min-w-[300px] justify-between ${
+              toast.type === 'success' 
+              ? 'bg-[#121212] border-green-500/30 text-green-500' 
+              : 'bg-[#121212] border-red-500/30 text-red-500'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              {toast.type === 'success' ? <CheckCircle2 size={18} /> : <Clock size={18} className="rotate-45" />}
+              <span className="text-xs font-black uppercase tracking-widest text-white">{toast.message}</span>
+            </div>
+            <button 
+              onClick={() => setToast(null)}
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <X size={14} className="text-white/40" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
