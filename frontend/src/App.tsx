@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Plus, Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2 } from 'lucide-react'
+import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2 } from 'lucide-react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart as ReBarChart, Bar, Cell
 } from 'recharts'
 
