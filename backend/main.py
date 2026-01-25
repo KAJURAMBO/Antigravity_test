@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from sqlmodel import Session, select
 from typing import List
-from .database import reset_db_and_tables, get_session
+from .database import smart_initialize_db, get_session
 from .models import Task, TaskCreate, TaskUpdate, User, UserRead, UserUpdate
 from .auth import create_access_token, get_current_user, verify_google_token
 from pydantic import BaseModel
@@ -14,13 +14,13 @@ import os
 
 
 # Ensure upload directory exists
-UPLOAD_DIR = "static/uploads"
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    reset_db_and_tables()
+    smart_initialize_db()
     yield
 
 

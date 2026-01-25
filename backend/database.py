@@ -1,5 +1,6 @@
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import SQLModel, create_engine, Session, select, text
 from .config import settings
+from sqlalchemy.exc import ProgrammingError
 
 # SQLAlchemy requires 'postgresql://' instead of 'postgres://'
 database_url = settings.APP_DATABASE_URL
@@ -19,6 +20,37 @@ def create_db_and_tables():
 def reset_db_and_tables():
     SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
+
+
+def smart_initialize_db():
+    """
+    Attempts to initialize the database normally.
+    If it detects missing columns (ProgrammingError), it performs a reset.
+    """
+    try:
+        # First, ensure tables exist
+        create_db_and_tables()
+
+        # Test if the new columns (e.g., bio) exist by performing a small query
+        with Session(engine) as session:
+            # We use text() to avoid SQLModel/SQLAlchemy cached schema issues
+            session.exec(text('SELECT bio FROM "user" LIMIT 1'))
+            print("Database schema verified. (Smart Initialization)")
+
+    except ProgrammingError as e:
+        if (
+            "column user.bio does not exist" in str(e).lower()
+            or "undefinedcolumn" in str(e).lower()
+        ):
+            print("Missing columns detected. Resetting database schema...")
+            reset_db_and_tables()
+        else:
+            # Re-raise if it's a different programming error
+            raise e
+    except Exception as e:
+        # Fallback for other issues (like table not existing at all yet)
+        print(f"Initialization notice: {e}. Ensuring tables exist.")
+        create_db_and_tables()
 
 
 def get_session():
