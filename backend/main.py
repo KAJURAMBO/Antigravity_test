@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from sqlmodel import Session, select
 from typing import List
-from .database import create_db_and_tables, get_session
+from .database import reset_db_and_tables, get_session
 from .models import Task, TaskCreate, TaskUpdate, User, UserRead, UserUpdate
 from .auth import create_access_token, get_current_user, verify_google_token
 from pydantic import BaseModel
@@ -20,7 +20,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_db_and_tables()
+    reset_db_and_tables()
     yield
 
 
@@ -127,28 +127,55 @@ async def update_user_me(
     return current_user
 
 
+import cloudinary
+import cloudinary.uploader
+from .config import settings
+
+# Configure Cloudinary
+cloudinary.config(
+    cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+    api_key=settings.CLOUDINARY_API_KEY,
+    api_secret=settings.CLOUDINARY_API_SECRET,
+    secure=True,
+)
+
+
 @app.post("/users/me/picture")
 async def upload_profile_picture(
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    file_extension = os.path.splitext(file.filename)[1]
-    file_name = f"user_{current_user.id}{file_extension}"
-    file_path = os.path.join(UPLOAD_DIR, file_name)
+    try:
+        # Use Cloudinary if configured, else fall back to local
+        if settings.CLOUDINARY_CLOUD_NAME and settings.CLOUDINARY_API_KEY:
+            # Upload to Cloudinary
+            result = cloudinary.uploader.upload(
+                file.file,
+                folder="profiles",
+                public_id=f"user_{current_user.id}",
+                overwrite=True,
+            )
+            picture_url = result.get("secure_url")
+        else:
+            # Local fallback (Temporary/Local testing)
+            file_extension = os.path.splitext(file.filename)[1]
+            file_name = f"user_{current_user.id}{file_extension}"
+            file_path = os.path.join(UPLOAD_DIR, file_name)
 
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+            picture_url = f"/static/uploads/{file_name}"
 
-    # In a real app we might use a proper URL.
-    # For local, we point to the mounted /static path.
-    picture_url = f"/static/uploads/{file_name}"
-    current_user.picture = picture_url
-    session.add(current_user)
-    session.commit()
-    session.refresh(current_user)
+        current_user.picture = picture_url
+        session.add(current_user)
+        session.commit()
+        session.refresh(current_user)
 
-    return {"picture_url": picture_url}
+        return {"picture_url": picture_url}
+    except Exception as e:
+        print(f"Upload error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload image")
 
 
 # CRUD Endpoints (Protected)

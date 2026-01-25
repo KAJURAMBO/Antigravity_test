@@ -20,5 +20,10 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env")
 
+    # Cloudinary
+    CLOUDINARY_CLOUD_NAME: Optional[str] = None
+    CLOUDINARY_API_KEY: Optional[str] = None
+    CLOUDINARY_API_SECRET: Optional[str] = None
+
 
 settings = Settings()
