@@ -1,0 +1,24 @@
+services:
+  # Backend API
+  - type: web
+    name: todo-backend
+    env: python
+    buildCommand: uv sync
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false # You will set this in the Render dashboard
+
+  # Frontend Dashboard
+  - type: web
+    name: todo-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm run build
+    staticPublishDir: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: todo-backend
+          property: url
