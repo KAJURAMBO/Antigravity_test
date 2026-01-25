@@ -10,7 +10,8 @@ A full-stack, Full-Cloud premium To-Do application with real-time analytics and 
 ## 🛠 Tech Stack
 
 - **Backend:** FastAPI, SQLModel, Uvicorn
-- **Database:** **Aiven PostgreSQL** (Cloud Persistence)
+- **Database:** **Aiven PostgreSQL** (Global Persistence)
+- **Image Storage:** **Cloudinary** (Permanent Profile Avatars)
 - **Frontend:** React, Tailwind CSS v4, Framer Motion, Recharts
 - **Hosting:** Render.com
 
@@ -21,9 +22,6 @@ If you want to run this locally using the cloud database:
 ```powershell
 # From root directory
 .\run.ps1
-
-# If you get a permission error, use:
-powershell -ExecutionPolicy Bypass -File .\run.ps1
 ```
 
 ### 🧪 Local Testing (Multi-Profile)
@@ -32,12 +30,15 @@ To test the application locally without Google login:
 
 1. Run the app using the command above.
 2. Scroll to the **"Developer Access"** section at the bottom of the login screen.
-3. Enter `AlphaUser` (or any name) and press **Enter** to instantly log in to a unique test profile.
+3. Enter `alpha` (or any name) and press **Enter** to instantly log in to a unique test profile.
 
-## ✨ Cloud Features
+## ✨ Premium Features
 
-- **Global Persistence:** Powered by Aiven PostgreSQL—your tasks are safe anywhere.
-- **Analytics Dashboard:** Real-time weekly trends and completion ratios.
-- **Rainbow Spotlight:** Interactive spectral cursor lighting effect.
-- **Glassmorphism UI:** Modern, high-end aesthetics with frosted-glass components.
+- **Personalized User Profiles:** Dedicated page to customize your public name and professional bio.
+- **Permanent Avatar Hosting:** Integrated Cloudinary storage ensures your profile picture survives every update.
+- **Smart Schema Sync:** Intelligent backend initialization that auto-detects and fixes database mismatches.
+- **Global Persistence:** Powered by Aiven PostgreSQL—your tasks are safe anywhere in the world.
+- **Real-Time Analytics:** Interactive charts showing your weekly growth and completion trends.
+- **Premium Glassmorphism:** State-of-the-art UI with frosted-glass effects and interactive lighting.
+- **Toast Notifications:** Smooth confirmation popups for every major action.
 - **Automated Deployment:** Integrated `render.yaml` blueprint for one-click infra setup.
