@@ -29,3 +29,11 @@ npm run dev -- --port 5173
 - **Rainbow Spotlight:** Interactive cursor lighting effect.
 - **Glassmorphism UI:** Modern, high-end aesthetics.
 - **Persistent Data:** SQLite database with precise task timestamps.
+
+### 3. Run all at once (One-step)
+
+```powershell
+.\run.ps1
+# If you get a permission error, use:
+powershell -ExecutionPolicy Bypass -File .\run.ps1
+```
