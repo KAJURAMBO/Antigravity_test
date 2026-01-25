@@ -21,6 +21,7 @@ interface UserProfile {
   email: string
   full_name: string | null
   picture: string | null
+  bio: string | null
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -207,6 +208,57 @@ function App() {
   const pendingTasks = tasks.filter(t => !t.is_completed).length
   const completedTasks = tasks.filter(t => t.is_completed).length
 
+  const [showProfile, setShowProfile] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [editingName, setEditingName] = useState('')
+  const [editingBio, setEditingBio] = useState('')
+
+  useEffect(() => {
+    if (user) {
+      setEditingName(user.full_name || '')
+      setEditingBio(user.bio || '')
+    }
+  }, [user])
+
+  const handleUpdateProfile = async () => {
+    if (!user) return
+    setProfileSaving(true)
+    try {
+      const data = await apiFetch('/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          full_name: editingName,
+          bio: editingBio
+        })
+      })
+      setUser(data)
+    } catch (error) {
+      console.error('Error updating profile:', error)
+    } finally {
+      setProfileSaving(true)
+    }
+  }
+
+  const handlePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return
+    const formData = new FormData()
+    formData.append('file', e.target.files[0])
+
+    try {
+      const response = await fetch(`${API_URL}/users/me/picture`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+      const data = await response.json()
+      setUser({ ...user!, picture: data.picture_url })
+    } catch (error) {
+      console.error('Error uploading picture:', error)
+    }
+  }
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
@@ -253,6 +305,105 @@ function App() {
             <p className="text-xs text-muted-foreground uppercase tracking-widest font-black opacity-30">Secure Google Authentication</p>
           </div>
         </motion.div>
+      </div>
+    )
+  }
+
+  if (showProfile) {
+    return (
+      <div className="relative min-h-screen py-8 px-4 sm:px-6 lg:px-12 overflow-hidden bg-[#0a0a0a]">
+        <motion.div 
+          className="cursor-spotlight"
+          style={{ x: springX, y: springY, translateX: '-50%', translateY: '-50%' }}
+        />
+        
+        <div className="relative max-w-4xl mx-auto space-y-12">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <button 
+              onClick={() => setShowProfile(false)}
+              className="flex items-center gap-2 text-white/40 hover:text-white transition-colors group"
+            >
+              <Layout size={20} className="group-hover:text-primary transition-colors" />
+              <span className="text-sm font-black uppercase tracking-widest">Back to Board</span>
+            </button>
+            <h1 className="text-2xl font-black text-white tracking-tighter uppercase italic">User Profile</h1>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
+            {/* Left: Avatar Upload */}
+            <div className="md:col-span-4 space-y-6">
+              <div className="glass p-8 rounded-[40px] border border-white/5 text-center relative group">
+                <div className="relative w-32 h-32 mx-auto mb-6">
+                  {user.picture ? (
+                    <img src={user.picture.startsWith('/') ? `${API_URL}${user.picture}` : user.picture} className="w-full h-full rounded-[32px] object-cover border-4 border-white/5 shadow-2xl" alt="" />
+                  ) : (
+                    <div className="w-full h-full rounded-[32px] bg-white/5 flex items-center justify-center border-4 border-white/5">
+                      <UserIcon size={48} className="text-white/20" />
+                    </div>
+                  )}
+                  <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-primary rounded-2xl flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all shadow-xl shadow-primary/40">
+                    <LogOut size={16} className="text-white -rotate-90" />
+                    <input type="file" className="hidden" onChange={handlePictureUpload} accept="image/*" />
+                  </label>
+                </div>
+                <h3 className="text-xl font-black text-white truncate">{user.full_name || 'User'}</h3>
+                <p className="text-xs text-white/30 font-bold truncate">{user.email}</p>
+              </div>
+            </div>
+
+            {/* Right: Personalization Form */}
+            <div className="md:col-span-8 space-y-8">
+              <div className="glass p-10 rounded-[40px] border border-white/5 space-y-8">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-2">Display Name</label>
+                    <input 
+                      type="text" 
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      placeholder="Identify yourself..."
+                      className="input-premium h-14"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-2">Bio / Objectives</label>
+                    <textarea 
+                      value={editingBio}
+                      onChange={(e) => setEditingBio(e.target.value)}
+                      placeholder="What drives you? 🚀"
+                      className="input-premium py-4 min-h-[120px] resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={handleUpdateProfile}
+                    disabled={profileSaving}
+                    className="button-premium flex-1 bg-gradient-to-r from-primary to-blue-600 h-14 text-sm font-black tracking-[0.1em]"
+                  >
+                    {profileSaving ? 'SYNCHRONIZING...' : 'SAVE CHANGES'}
+                  </button>
+                  <button 
+                     onClick={handleLogout}
+                     className="px-6 h-14 glass rounded-2xl border border-white/5 text-red-500 hover:bg-red-500/10 transition-all font-black text-xs uppercase tracking-widest"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-8 border border-dashed border-white/10 rounded-[40px] opacity-40">
+                <p className="text-xs text-center text-white font-medium leading-relaxed">
+                  Your profile data is securely stored and used to personalize your task management experience. 
+                  Profile pictures are hosted on our secure storage.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -368,9 +519,12 @@ function App() {
                 </div>
 
                {/* Profile Section */}
-               <div className="flex items-center gap-3 glass py-1.5 px-2.5 rounded-2xl border border-white/5 bg-white/[0.02]">
+               <div 
+                 onClick={() => setShowProfile(true)}
+                 className="flex items-center gap-3 glass py-1.5 px-2.5 rounded-2xl border border-white/5 bg-white/[0.02] cursor-pointer hover:bg-white/5 transition-colors"
+               >
                   {user.picture ? (
-                    <img src={user.picture} className="w-7 h-7 rounded-xl border border-white/10" alt="" />
+                    <img src={user.picture.startsWith('/') ? `${API_URL}${user.picture}` : user.picture} className="w-7 h-7 rounded-xl border border-white/10" alt="" />
                   ) : (
                     <div className="w-7 h-7 rounded-xl bg-white/10 flex items-center justify-center">
                       <UserIcon size={14} className="text-white" />
@@ -381,7 +535,7 @@ function App() {
                     <p className="text-xs font-bold text-white leading-none truncate max-w-[100px]">{user.full_name || user.email}</p>
                   </div>
                   <button 
-                    onClick={handleLogout}
+                    onClick={(e) => { e.stopPropagation(); handleLogout(); }}
                     className="p-1.5 hover:bg-red-500/10 rounded-xl text-white/30 hover:text-red-500 transition-all active:scale-95"
                   >
                     <LogOut size={16} />

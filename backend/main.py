@@ -4,9 +4,18 @@ from contextlib import asynccontextmanager
 from sqlmodel import Session, select
 from typing import List
 from .database import create_db_and_tables, get_session
-from .models import Task, TaskCreate, TaskUpdate, User, UserRead
+from .models import Task, TaskCreate, TaskUpdate, User, UserRead, UserUpdate
 from .auth import create_access_token, get_current_user, verify_google_token
 from pydantic import BaseModel
+from fastapi import File, UploadFile
+from fastapi.staticfiles import StaticFiles
+import shutil
+import os
+
+
+# Ensure upload directory exists
+UPLOAD_DIR = "static/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @asynccontextmanager
@@ -30,6 +39,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 class GoogleAuthRequest(BaseModel):
@@ -83,6 +94,45 @@ async def google_auth(
 @app.get("/users/me", response_model=UserRead)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@app.patch("/users/me", response_model=UserRead)
+async def update_user_me(
+    user_update: UserUpdate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    user_data = user_update.model_dump(exclude_unset=True)
+    for key, value in user_data.items():
+        setattr(current_user, key, value)
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+    return current_user
+
+
+@app.post("/users/me/picture")
+async def upload_profile_picture(
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    file_extension = os.path.splitext(file.filename)[1]
+    file_name = f"user_{current_user.id}{file_extension}"
+    file_path = os.path.join(UPLOAD_DIR, file_name)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # In a real app we might use a proper URL.
+    # For local, we point to the mounted /static path.
+    picture_url = f"/static/uploads/{file_name}"
+    current_user.picture = picture_url
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+
+    return {"picture_url": picture_url}
 
 
 # CRUD Endpoints (Protected)

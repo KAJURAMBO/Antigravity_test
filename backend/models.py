@@ -8,6 +8,8 @@ class UserBase(SQLModel):
     full_name: Optional[str] = None
     picture: Optional[str] = None
     google_id: str = Field(index=True, unique=True)
+    bio: Optional[str] = None
+    theme: Optional[str] = "dark"
 
 
 class User(UserBase, table=True):
@@ -38,6 +40,13 @@ class TaskUpdate(SQLModel):
     title: Optional[str] = None
     description: Optional[str] = None
     is_completed: Optional[bool] = None
+
+
+class UserUpdate(SQLModel):
+    full_name: Optional[str] = None
+    bio: Optional[str] = None
+    picture: Optional[str] = None
+    theme: Optional[str] = None
 
 
 class UserRead(UserBase):
