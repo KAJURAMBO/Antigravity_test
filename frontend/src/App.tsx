@@ -350,16 +350,22 @@ function App() {
              
              <div className="flex flex-wrap items-center justify-center gap-3">
                {/* Task Status */}
-               <div className="flex gap-2">
-                 <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-2 border border-white/5">
-                   <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                   <span className="text-white font-black text-sm">{completedTasks}</span>
-                 </div>
-                 <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-2 border border-white/5">
-                   <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
-                   <span className="text-white font-black text-sm">{pendingTasks}</span>
-                 </div>
-               </div>
+                <div className="flex gap-2">
+                  <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-3 border border-white/5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest hidden lg:block">Done</span>
+                    </div>
+                    <span className="text-white font-black text-sm">{completedTasks}</span>
+                  </div>
+                  <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-3 border border-white/5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest hidden lg:block">Active</span>
+                    </div>
+                    <span className="text-white font-black text-sm">{pendingTasks}</span>
+                  </div>
+                </div>
 
                {/* Profile Section */}
                <div className="flex items-center gap-3 glass py-1.5 px-2.5 rounded-2xl border border-white/5 bg-white/[0.02]">
