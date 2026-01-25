@@ -18,7 +18,4 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: todo-backend
-          property: url
+        sync: false # Set this to your Backend URL after it is deployed
