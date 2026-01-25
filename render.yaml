@@ -3,6 +3,7 @@ services:
   - type: web
     name: todo-backend
     env: python
+    plan: free
     buildCommand: uv sync
     startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -12,7 +13,8 @@ services:
   # Frontend Dashboard
   - type: web
     name: todo-frontend
-    env: static
+    runtime: static
+    plan: free
     rootDir: frontend
     buildCommand: npm run build
     staticPublishPath: dist
