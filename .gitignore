@@ -24,3 +24,6 @@ build/
 # Environment variables
 .env
 .env.*
+
+# Static assets (local uploads)
+static/
