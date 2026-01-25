@@ -15,7 +15,7 @@ services:
     env: static
     rootDir: frontend
     buildCommand: npm run build
-    staticPublishDir: dist
+    publishDir: dist
     envVars:
       - key: VITE_API_URL
         fromService:
