@@ -79,13 +79,7 @@ async def google_auth(
         session.add(user)
         session.commit()
         session.refresh(user)
-    else:
-        # Update user info if changed
-        user.full_name = name
-        user.picture = picture
-        session.add(user)
-        session.commit()
-        session.refresh(user)
+    # No else - we don't want to overwrite custom user names and pictures with Google data every login
 
     access_token = create_access_token(data={"sub": google_id})
     return {"access_token": access_token, "token_type": "bearer", "user": user}
