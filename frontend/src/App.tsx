@@ -265,26 +265,6 @@ function App() {
         style={{ x: springX, y: springY, translateX: '-50%', translateY: '-50%' }}
       />
 
-      {/* Profile Header */}
-      <div className="fixed top-6 right-8 z-50 flex items-center gap-4 glass py-2 px-3 rounded-full border border-white/5">
-        <div className="flex items-center gap-3">
-          {user.picture ? (
-            <img src={user.picture} className="w-8 h-8 rounded-full border border-white/10" alt="" />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-              <UserIcon size={16} className="text-white" />
-            </div>
-          )}
-          <span className="text-xs font-black text-white truncate max-w-[150px]">{user.full_name || user.email}</span>
-        </div>
-        <button 
-          onClick={handleLogout}
-          className="p-2 hover:bg-red-500/10 rounded-full text-muted-foreground hover:text-red-500 transition-colors"
-        >
-          <LogOut size={16} />
-        </button>
-      </div>
-
       <div className="relative max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
         
         {/* Left Side: Analytics Dashboard */}
@@ -360,21 +340,46 @@ function App() {
 
         {/* Right Side: To-Do App */}
         <main className="lg:col-span-7 space-y-8">
-          <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="flex flex-col sm:flex-row items-center justify-between pb-4 border-b border-white/10 gap-4">
              <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center">
                 <ListTodo size={24} className="text-primary" />
               </div>
               <h2 className="text-3xl font-bold text-white tracking-tight">Main Board</h2>
              </div>
-             <div className="flex gap-2">
-               <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-2 border border-white/5">
-                 <CheckCircle2 size={16} className="text-green-500" />
-                 <span className="text-white font-bold">{completedTasks}</span>
+             
+             <div className="flex flex-wrap items-center justify-center gap-3">
+               {/* Task Status */}
+               <div className="flex gap-2">
+                 <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-2 border border-white/5">
+                   <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                   <span className="text-white font-black text-sm">{completedTasks}</span>
+                 </div>
+                 <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-2 border border-white/5">
+                   <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
+                   <span className="text-white font-black text-sm">{pendingTasks}</span>
+                 </div>
                </div>
-               <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-2 border border-white/5">
-                 <Clock size={16} className="text-primary" />
-                 <span className="text-white font-bold">{pendingTasks}</span>
+
+               {/* Profile Section */}
+               <div className="flex items-center gap-3 glass py-1.5 px-2.5 rounded-2xl border border-white/5 bg-white/[0.02]">
+                  {user.picture ? (
+                    <img src={user.picture} className="w-7 h-7 rounded-xl border border-white/10" alt="" />
+                  ) : (
+                    <div className="w-7 h-7 rounded-xl bg-white/10 flex items-center justify-center">
+                      <UserIcon size={14} className="text-white" />
+                    </div>
+                  )}
+                  <div className="hidden sm:block">
+                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none mb-0.5">Operator</p>
+                    <p className="text-xs font-bold text-white leading-none truncate max-w-[100px]">{user.full_name || user.email}</p>
+                  </div>
+                  <button 
+                    onClick={handleLogout}
+                    className="p-1.5 hover:bg-red-500/10 rounded-xl text-white/30 hover:text-red-500 transition-all active:scale-95"
+                  >
+                    <LogOut size={16} />
+                  </button>
                </div>
              </div>
           </div>
