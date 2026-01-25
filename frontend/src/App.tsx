@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2 } from 'lucide-react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon } from 'lucide-react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { 
   AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart as ReBarChart, Bar, Cell
 } from 'recharts'
+import { GoogleLogin, googleLogout } from '@react-oauth/google'
 
 interface Task {
   id: number
@@ -15,13 +16,23 @@ interface Task {
   updated_at: string | null
 }
 
+interface UserProfile {
+  id: number
+  email: string
+  full_name: string | null
+  picture: string | null
+}
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 function App() {
+  const [user, setUser] = useState<UserProfile | null>(null)
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
   const [tasks, setTasks] = useState<Task[]>([])
   const [newTask, setNewTask] = useState('')
   const [newDescription, setNewDescription] = useState('')
   const [loading, setLoading] = useState(false)
+  const [authLoading, setAuthLoading] = useState(true)
 
   // Cursor Tracking
   const mouseX = useMotionValue(0)
@@ -40,35 +51,100 @@ function App() {
     return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [mouseX, mouseY])
 
-  useEffect(() => {
-    fetchTasks()
-  }, [])
+  const apiFetch = useCallback(async (endpoint: string, options: RequestInit = {}) => {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...options.headers,
+    }
 
-  const fetchTasks = async () => {
+    const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers })
+    
+    if (response.status === 401) {
+      handleLogout()
+      throw new Error('Unauthorized')
+    }
+
+    if (response.status === 204) return null
+    return response.json()
+  }, [token])
+
+  const fetchTasks = useCallback(async () => {
+    if (!token) return
     try {
-      const response = await fetch(`${API_URL}/tasks/`)
-      const data = await response.json()
+      const data = await apiFetch('/tasks/')
       setTasks(data)
     } catch (error) {
       console.error('Error fetching tasks:', error)
     }
+  }, [token, apiFetch])
+
+  const fetchUserProfile = useCallback(async () => {
+    if (!token) {
+      setAuthLoading(false)
+      return
+    }
+    try {
+      const data = await apiFetch('/users/me')
+      setUser(data)
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+      handleLogout()
+    } finally {
+      setAuthLoading(false)
+    }
+  }, [token, apiFetch])
+
+  useEffect(() => {
+    fetchUserProfile()
+  }, [fetchUserProfile])
+
+  useEffect(() => {
+    if (user) {
+      fetchTasks()
+    }
+  }, [user, fetchTasks])
+
+  const handleLoginSuccess = async (credentialResponse: any) => {
+    setAuthLoading(true)
+    try {
+      const response = await fetch(`${API_URL}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: credentialResponse.credential })
+      })
+      const data = await response.json()
+      localStorage.setItem('token', data.access_token)
+      setToken(data.access_token)
+      setUser(data.user)
+    } catch (error) {
+      console.error('Login failed:', error)
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleLogout = () => {
+    googleLogout()
+    localStorage.removeItem('token')
+    setToken(null)
+    setUser(null)
+    setTasks([])
   }
 
   const createTask = async () => {
-    if (!newTask.trim()) return
+    if (!newTask.trim() || !user) return
     
     setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/tasks/`, {
+      const data = await apiFetch('/tasks/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: newTask,
           description: newDescription || null,
           is_completed: false
         })
       })
-      const data = await response.json()
       setTasks([data, ...tasks])
       setNewTask('')
       setNewDescription('')
@@ -81,12 +157,10 @@ function App() {
 
   const toggleTask = async (task: Task) => {
     try {
-      const response = await fetch(`${API_URL}/tasks/${task.id}`, {
+      const data = await apiFetch(`/tasks/${task.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_completed: !task.is_completed })
       })
-      const data = await response.json()
       setTasks(tasks.map(t => t.id === task.id ? data : t))
     } catch (error) {
       console.error('Error updating task:', error)
@@ -95,7 +169,7 @@ function App() {
 
   const deleteTask = async (id: number) => {
     try {
-      await fetch(`${API_URL}/tasks/${id}`, { method: 'DELETE' })
+      await apiFetch(`/tasks/${id}`, { method: 'DELETE' })
       setTasks(tasks.filter(t => t.id !== id))
     } catch (error) {
       console.error('Error deleting task:', error)
@@ -133,20 +207,82 @@ function App() {
   const pendingTasks = tasks.filter(t => !t.is_completed).length
   const completedTasks = tasks.filter(t => t.is_completed).length
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          <Clock size={48} className="text-primary animate-spin" />
+          <p className="text-white font-bold tracking-widest animate-pulse">AUTHENTICATING...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="relative min-h-screen bg-[#0a0a0a] flex items-center justify-center overflow-hidden">
+        {/* Background Blobs */}
+        <div className="fixed top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-20 blur-[100px] pointer-events-none">
+          <div className="w-full h-full bg-primary rounded-full animate-pulse" />
+        </div>
+        <div className="fixed bottom-[-10%] left-[-10%] w-[400px] h-[400px] opacity-10 blur-[80px] pointer-events-none">
+          <div className="w-full h-full bg-blue-600 rounded-full" />
+        </div>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass p-12 rounded-[40px] border border-white/5 max-w-lg w-full text-center space-y-10 relative z-10"
+        >
+          <div className="space-y-4">
+            <div className="w-24 h-24 bg-primary/20 rounded-[32px] flex items-center justify-center mx-auto mb-8">
+              <Layout size={48} className="text-primary" />
+            </div>
+            <h1 className="text-5xl font-black text-white tracking-tight">Focus Flow</h1>
+            <p className="text-xl text-muted-foreground font-medium">Elevate your productivity with a premium task management experience. ✨</p>
+          </div>
+
+          <div className="flex flex-col items-center gap-6">
+            <GoogleLogin
+              onSuccess={handleLoginSuccess}
+              onError={() => console.log('Login Failed')}
+              theme="filled_black"
+              shape="pill"
+              size="large"
+            />
+            <p className="text-xs text-muted-foreground uppercase tracking-widest font-black opacity-30">Secure Google Authentication</p>
+          </div>
+        </motion.div>
+      </div>
+    )
+  }
+
   return (
-    <div className="relative min-h-screen py-8 px-4 sm:px-6 lg:px-12 overflow-hidden">
+    <div className="relative min-h-screen py-8 px-4 sm:px-6 lg:px-12 overflow-hidden bg-[#0a0a0a]">
       {/* Interactive Cursor Spotlight */}
       <motion.div 
         className="cursor-spotlight"
         style={{ x: springX, y: springY, translateX: '-50%', translateY: '-50%' }}
       />
 
-      {/* Background Blobs */}
-      <div className="fixed top-[-10%] right-[-10%] w-[500px] h-[500px] opacity-10 blur-[100px] pointer-events-none">
-        <img src="/blob.png" alt="" className="w-full h-full object-contain animate-pulse" />
-      </div>
-      <div className="fixed bottom-[-10%] left-[-10%] w-[400px] h-[400px] opacity-5 blur-[80px] pointer-events-none rotate-180">
-        <img src="/blob.png" alt="" className="w-full h-full object-contain" />
+      {/* Profile Header */}
+      <div className="fixed top-6 right-8 z-50 flex items-center gap-4 glass py-2 px-3 rounded-full border border-white/5">
+        <div className="flex items-center gap-3">
+          {user.picture ? (
+            <img src={user.picture} className="w-8 h-8 rounded-full border border-white/10" alt="" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+              <UserIcon size={16} className="text-white" />
+            </div>
+          )}
+          <span className="text-xs font-black text-white truncate max-w-[150px]">{user.full_name || user.email}</span>
+        </div>
+        <button 
+          onClick={handleLogout}
+          className="p-2 hover:bg-red-500/10 rounded-full text-muted-foreground hover:text-red-500 transition-colors"
+        >
+          <LogOut size={16} />
+        </button>
       </div>
 
       <div className="relative max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -189,7 +325,7 @@ function App() {
                       <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff05" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff01" />
                   <XAxis dataKey="name" stroke="#ffffff30" fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip 
                     contentStyle={{ background: '#1a1a1a', border: '1px solid #ffffff10', borderRadius: '12px' }}
@@ -208,7 +344,7 @@ function App() {
             <div className="h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <ReBarChart data={completionData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff05" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff01" />
                   <XAxis dataKey="name" stroke="#ffffff30" fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #ffffff10', borderRadius: '12px' }} />
                   <Bar dataKey="value" radius={[10, 10, 10, 10]}>
@@ -226,7 +362,9 @@ function App() {
         <main className="lg:col-span-7 space-y-8">
           <div className="flex items-center justify-between pb-4 border-b border-white/10">
              <div className="flex items-center gap-4">
-              <img src="/illustration.png" className="w-12 h-12 object-contain" alt="" />
+              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center">
+                <ListTodo size={24} className="text-primary" />
+              </div>
               <h2 className="text-3xl font-bold text-white tracking-tight">Main Board</h2>
              </div>
              <div className="flex gap-2">

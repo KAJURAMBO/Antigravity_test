@@ -1,18 +1,15 @@
-import os
 from sqlmodel import SQLModel, create_engine, Session
-
-# Use DATABASE_URL from environment variables for Aiven/PostgreSQL
-# Fallback to local SQLite for development
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.db")
+from .config import settings
 
 # SQLAlchemy requires 'postgresql://' instead of 'postgres://'
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+database_url = settings.APP_DATABASE_URL
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
 
 # Only use check_same_thread for SQLite
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+engine = create_engine(database_url, connect_args=connect_args)
 
 
 def create_db_and_tables():

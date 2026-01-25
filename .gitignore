@@ -19,3 +19,8 @@ build/
 
 # Databases
 *.sqlite3
+*.db
+
+# Environment variables
+.env
+.env.*
