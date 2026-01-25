@@ -53,13 +53,17 @@ async def get_current_user(
     return user
 
 
+from google.oauth2 import id_token
+from google.auth.transport import requests
+
+
 async def verify_google_token(token: str):
-    # In a real app, you might use google-auth library,
-    # but for simplicity we can use httpx to call Google's tokeninfo endpoint
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"https://oauth2.googleapis.com/tokeninfo?id_token={token}"
+    try:
+        # Verify the token locally using public keys from Google
+        idinfo = id_token.verify_oauth2_token(
+            token, requests.Request(), settings.GOOGLE_CLIENT_ID
         )
-        if response.status_code != 200:
-            return None
-        return response.json()
+        return idinfo
+    except Exception as e:
+        print(f"Token verification error: {e}")
+        return None

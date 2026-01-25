@@ -17,4 +17,5 @@ dependencies = [
     "pydantic-settings>=2.12.0",
     "python-multipart>=0.0.22",
     "cloudinary>=1.44.1",
+    "google-auth>=2.47.0",
 ]

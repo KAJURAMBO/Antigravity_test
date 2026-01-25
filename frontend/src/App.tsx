@@ -564,57 +564,58 @@ function App() {
 
         {/* Right Side: To-Do App */}
         <main className="lg:col-span-7 space-y-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between pb-4 border-b border-white/10 gap-4">
-             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center">
-                <ListTodo size={24} className="text-primary" />
-              </div>
-              <h2 className="text-3xl font-bold text-white tracking-tight">Main Board</h2>
-             </div>
-             
-             <div className="flex flex-wrap items-center justify-center gap-3">
-               {/* Task Status */}
-                <div className="flex gap-2">
-                  <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-3 border border-white/5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest hidden lg:block">Done</span>
-                    </div>
-                    <span className="text-white font-black text-sm">{completedTasks}</span>
-                  </div>
-                  <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-3 border border-white/5">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest hidden lg:block">Active</span>
-                    </div>
-                    <span className="text-white font-black text-sm">{pendingTasks}</span>
-                  </div>
+          <div className="flex flex-col gap-6 pb-6 border-b border-white/10">
+            {/* Top Row: Title and Profile */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/5 rounded-2xl flex items-center justify-center">
+                  <ListTodo size={20} className="text-primary sm:w-6 sm:h-6" />
                 </div>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Main Board</h2>
+              </div>
 
-               {/* Profile Section */}
-               <div 
-                 onClick={() => setShowProfile(true)}
-                 className="flex items-center gap-3 glass py-1.5 px-2.5 rounded-2xl border border-white/5 bg-white/[0.02] cursor-pointer hover:bg-white/5 transition-colors"
-               >
-                  {user.picture ? (
-                    <img src={user.picture.startsWith('/') ? `${API_URL}${user.picture}` : user.picture} className="w-7 h-7 rounded-xl border border-white/10" alt="" />
-                  ) : (
-                    <div className="w-7 h-7 rounded-xl bg-white/10 flex items-center justify-center">
-                      <UserIcon size={14} className="text-white" />
-                    </div>
-                  )}
-                  <div className="hidden sm:block">
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none mb-0.5">Operator</p>
-                    <p className="text-xs font-bold text-white leading-none truncate max-w-[100px]">{user.full_name || user.email}</p>
+              {/* Profile Section - Integrated into top row for accessibility */}
+              <div 
+                onClick={() => setShowProfile(true)}
+                className="flex items-center gap-2 sm:gap-3 glass py-1.5 px-2 sm:px-2.5 rounded-2xl border border-white/5 bg-white/[0.02] cursor-pointer hover:bg-white/5 transition-colors"
+              >
+                {user.picture ? (
+                  <img src={user.picture.startsWith('/') ? `${API_URL}${user.picture}` : user.picture} className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl border border-white/10" alt="" />
+                ) : (
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-white/10 flex items-center justify-center">
+                    <UserIcon size={12} className="text-white sm:w-4 sm:h-4" />
                   </div>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleLogout(); }}
-                    className="p-1.5 hover:bg-red-500/10 rounded-xl text-white/30 hover:text-red-500 transition-all active:scale-95"
-                  >
-                    <LogOut size={16} />
-                  </button>
-               </div>
-             </div>
+                )}
+                <div className="hidden sm:block">
+                  <p className="text-[9px] sm:text-[10px] font-black text-white/40 uppercase tracking-widest leading-none mb-0.5">Operator</p>
+                  <p className="text-xs font-bold text-white leading-none truncate max-w-[80px] sm:max-w-[100px]">{user.full_name || user.email}</p>
+                </div>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleLogout(); }}
+                  className="p-1 sm:p-1.5 hover:bg-red-500/10 rounded-xl text-white/30 hover:text-red-500 transition-all active:scale-95"
+                >
+                  <LogOut size={14} className="sm:w-4 sm:h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Bottom Row: Stats - Stays prominent on mobile */}
+            <div className="flex items-center justify-start gap-4">
+              <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-3 border border-white/5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Done</span>
+                </div>
+                <span className="text-white font-black text-sm">{completedTasks}</span>
+              </div>
+              <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-3 border border-white/5">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Active</span>
+                </div>
+                <span className="text-white font-black text-sm">{pendingTasks}</span>
+              </div>
+            </div>
           </div>
 
           <div className="glass p-8 rounded-[32px] shadow-2xl relative overflow-hidden border border-white/5">
