@@ -10,8 +10,9 @@ services:
         sync: false # You will set this in the Render dashboard
 
   # Frontend Dashboard
-  - type: static_site
+  - type: web
     name: todo-frontend
+    runtime: static
     rootDir: frontend
     buildCommand: npm run build
     publishDir: dist
