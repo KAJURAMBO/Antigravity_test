@@ -404,6 +404,11 @@ function App() {
         if (t.is_completed) {
           dailyData[`${key}-done`] = (dailyData[`${key}-done`] || 0) + 1
         } else {
+          const dDate = new Date(t.created_at)
+          dDate.setHours(0,0,0,0)
+          const now = new Date()
+          now.setHours(0,0,0,0)
+
           if (dDate.getTime() === now.getTime()) {
              dailyData[`${key}-active`] = (dailyData[`${key}-active`] || 0) + 1
           } else if (dDate.getTime() < now.getTime()) {
