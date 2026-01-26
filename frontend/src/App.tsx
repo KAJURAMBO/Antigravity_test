@@ -283,7 +283,7 @@ function App() {
           title: newTask,
           description: newDescription || null,
           is_completed: false,
-          created_at: scheduledDate ? new Date(scheduledDate).toISOString() : null
+          created_at: scheduledDate ? new Date(scheduledDate).toISOString() : new Date().toISOString()
         })
       })
       setTasks([data, ...tasks])
