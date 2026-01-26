@@ -574,12 +574,11 @@ function App() {
       future: tasks.filter(t => {
         const d = new Date(t.created_at)
         d.setHours(0, 0, 0, 0)
-        const isFuture = d > now
+        // Strict Future: Date > Today (Midnight)
+        const isFuture = d.getTime() > now.getTime()
+        
         if (!isFuture) return false
         
-        // Filter future tasks by selected status
-        if (listStatus === 'done') return t.is_completed
-        if (listStatus === 'backlog') return !t.is_completed // Future tasks aren't backlog yet, but showing them if explicitly viewing backlog might be weird. Stick to Active/Done.
         return !t.is_completed
       })
     }
