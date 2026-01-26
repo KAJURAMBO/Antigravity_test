@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon, X } from 'lucide-react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { 
@@ -42,7 +42,7 @@ const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDat
   >
     <div className={`p-6 rounded-[22px] flex items-start gap-6 bg-gradient-to-br ${task.is_completed ? 'from-white/[0.02] to-transparent' : 'from-white/[0.05] to-transparent'}`}>
       <button
-        onClick={() => toggleTask(task)}
+        onClick={(e) => { e.stopPropagation(); toggleTask(task); }}
         className={`flex-shrink-0 w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all transform active:scale-90 ${
           task.is_completed
             ? 'bg-gradient-to-br from-primary to-blue-600 border-transparent shadow-xl shadow-primary/30'
@@ -84,7 +84,7 @@ const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDat
       </div>
 
       <button
-        onClick={() => deleteTask(task.id)}
+        onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
         className="p-4 text-muted-foreground/30 hover:text-red-500 hover:bg-red-500/10 rounded-2xl transition-all transform hover:scale-110"
       >
         <Trash2 size={24} />
@@ -115,6 +115,9 @@ function App() {
   const [editDate, setEditDate] = useState('')
   const [openStatsDropdown, setOpenStatsDropdown] = useState<'active' | 'done' | null>(null)
 
+  // Dropdown Refs
+  const statsDropdownRef = useRef<HTMLDivElement>(null)
+
   // Cursor Tracking
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
@@ -128,8 +131,17 @@ function App() {
       mouseX.set(e.clientX)
       mouseY.set(e.clientY)
     }
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statsDropdownRef.current && !statsDropdownRef.current.contains(event.target as Node)) {
+        setOpenStatsDropdown(null)
+      }
+    }
     window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
   }, [mouseX, mouseY])
 
   const apiFetch = useCallback(async (endpoint: string, options: RequestInit = {}) => {
@@ -846,7 +858,7 @@ function App() {
             </div>
 
             {/* Bottom Row: Stats - Stays prominent on mobile */}
-            <div className="grid grid-cols-2 gap-4 relative">
+            <div ref={statsDropdownRef} className="grid grid-cols-2 gap-4 relative">
               <div className="relative">
                 <button 
                   onClick={() => {
@@ -964,15 +976,15 @@ function App() {
                 className="input-premium py-5 min-h-[140px] resize-none"
               />
               
-              <div className="flex flex-col gap-3">
-                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-4">Schedule Objective (Optional)</label>
+              <div className="flex flex-col gap-2 sm:gap-3">
+                <label className="text-[9px] sm:text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-4">Schedule Objective (Optional)</label>
                 <input
                   type="date"
                   value={scheduledDate}
                   onChange={(e) => setScheduledDate(e.target.value)}
-                  className="input-premium h-14 text-sm px-6 text-primary scheme-dark"
+                  className="input-premium h-11 sm:h-14 text-xs px-4 sm:px-6 text-primary scheme-dark"
                 />
-                <p className="text-[9px] text-white/20 italic px-4">Leave empty to focus on this objective today.</p>
+                <p className="text-[8px] sm:text-[9px] text-white/20 italic px-4">Leave empty for today.</p>
               </div>
               <button
                 onClick={createTask}
@@ -1142,6 +1154,7 @@ function App() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
               className="relative w-full max-w-2xl glass-card border border-white/10 p-1 overflow-hidden"
             >
               <div className="bg-[#0a0a0a] rounded-[28px] p-8 space-y-8 max-h-[80vh] overflow-y-auto custom-scrollbar">
@@ -1198,7 +1211,7 @@ function App() {
                       <textarea
                         value={editDescription}
                         onChange={(e) => setEditDescription(e.target.value)}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-lg text-muted-foreground min-h-[150px] focus:border-primary outline-none transition-all resize-none"
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-3 sm:p-4 text-base sm:text-lg text-muted-foreground min-h-[120px] sm:min-h-[150px] focus:border-primary outline-none transition-all resize-none"
                         placeholder="Break down the details..."
                       />
                     ) : (
@@ -1209,13 +1222,13 @@ function App() {
                   </div>
 
                   {isEditingTask ? (
-                    <div className="flex flex-col gap-3">
-                      <label className="text-[10px] font-black text-white/20 uppercase tracking-widest px-4">Reschedule Objective</label>
+                    <div className="flex flex-col gap-2 sm:gap-3">
+                      <label className="text-[9px] sm:text-[10px] font-black text-white/20 uppercase tracking-widest px-4">Reschedule Objective</label>
                       <input
                         type="date"
                         value={editDate}
                         onChange={(e) => setEditDate(e.target.value)}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white focus:border-primary outline-none transition-all scheme-dark"
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-3 sm:p-4 text-sm sm:text-base text-white focus:border-primary outline-none transition-all scheme-dark"
                       />
                     </div>
                   ) : (
