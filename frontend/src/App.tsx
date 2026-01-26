@@ -865,9 +865,37 @@ function App() {
           </div>
 
           <div className="glass p-8 rounded-3xl border border-white/5 space-y-6">
-            <h3 className="text-xl font-bold text-white flex items-center gap-3">
-              <TrendingUp size={20} className="text-primary" /> Activity Trend
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                <TrendingUp size={20} className="text-primary" /> Activity Trend
+              </h3>
+              <div className="flex items-center gap-2">
+                 <button 
+                   onClick={() => setListStatus('backlog')}
+                   className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${listStatus === 'backlog' ? 'bg-red-500/20 border-red-500/50' : 'bg-white/5 border-transparent hover:bg-white/10'}`}
+                 >
+                   <div className="w-2 h-2 rounded-full bg-red-500" />
+                   <span className="text-[10px] font-black uppercase text-white/60">Backlog</span>
+                   <span className="text-xs font-bold text-white">{backlogCount}</span>
+                 </button>
+                 <button 
+                   onClick={() => setListStatus('active')}
+                   className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${listStatus === 'active' ? 'bg-primary/20 border-primary/50' : 'bg-white/5 border-transparent hover:bg-white/10'}`}
+                 >
+                   <div className="w-2 h-2 rounded-full bg-primary" />
+                   <span className="text-[10px] font-black uppercase text-white/60">Active</span>
+                   <span className="text-xs font-bold text-white">{activeTodayCount}</span>
+                 </button>
+                 <button 
+                   onClick={() => setListStatus('done')}
+                   className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${listStatus === 'done' ? 'bg-green-500/20 border-green-500/50' : 'bg-white/5 border-transparent hover:bg-white/10'}`}
+                 >
+                   <div className="w-2 h-2 rounded-full bg-green-500" />
+                   <span className="text-[10px] font-black uppercase text-white/60">Done</span>
+                   <span className="text-xs font-bold text-white">{completedTasks}</span>
+                 </button>
+              </div>
+            </div>
             <div className="h-[250px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
