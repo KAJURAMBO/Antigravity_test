@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon, X } from 'lucide-react'
+import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon, X, Settings } from 'lucide-react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { 
   AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer,
