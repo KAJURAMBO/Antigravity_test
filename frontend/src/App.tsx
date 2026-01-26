@@ -673,15 +673,18 @@ function App() {
     })
 
     const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
+    const delegatedTasksTotal = tasks.filter(t => t.user_id === user?.id && t.assignee_id && t.assignee_id !== user?.id)
+
+    const basePool = listStatus === 'delegated' ? delegatedTasksTotal : myTasks
 
     return {
       focus: filteredFocus,
-      backlog: myTasks.filter(t => {
+      backlog: basePool.filter(t => {
         const d = new Date(t.created_at)
         d.setHours(0, 0, 0, 0)
         return d.getTime() < now.getTime() && !t.is_completed
       }),
-      future: myTasks.filter(t => {
+      future: basePool.filter(t => {
         const d = new Date(t.created_at)
         d.setHours(0, 0, 0, 0)
         return d.getTime() > now.getTime() && !t.is_completed
