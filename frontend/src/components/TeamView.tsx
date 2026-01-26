@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, User as UserIcon, Mail } from 'lucide-react'
+import { User as UserIcon, Mail } from 'lucide-react'
 
 // Basic types (duplicated from App.tsx for now to avoid circular deps if not separated)
 interface UserProfile {
@@ -18,18 +18,12 @@ interface TeamViewProps {
 export function TeamView({ apiFetch, currentUser, showToast }: TeamViewProps) {
   const [members, setMembers] = useState<UserProfile[]>([])
   const [inviteEmail, setInviteEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [inviting, setInviting] = useState(false)
-
   const fetchMembers = async () => {
-    setLoading(true)
     try {
       const data = await apiFetch('/teams/members')
       if (data) setMembers(data)
     } catch (e) {
       console.error(e)
-    } finally {
-      setLoading(false)
     }
   }
 
