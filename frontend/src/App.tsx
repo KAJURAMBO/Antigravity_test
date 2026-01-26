@@ -310,13 +310,16 @@ function App() {
           title: newTask,
           description: newDescription || null,
           is_completed: false,
-          created_at: scheduledDate ? new Date(scheduledDate).toISOString() : new Date().toISOString()
+          created_at: scheduledDate ? new Date(scheduledDate).toISOString() : new Date().toISOString(),
+          assignee_id: assigneeId || null
         })
       })
       setTasks([data, ...tasks])
       setNewTask('')
       setNewDescription('')
       setScheduledDate('')
+      setAssigneeId('') // Reset dropdown
+      showToast(assigneeId ? 'Mission Assigned! 📤' : 'Mission Added! 🚀')
     } catch (error) {
       console.error('Error creating task:', error)
     } finally {
@@ -1348,8 +1351,8 @@ function App() {
                     className="w-32 bg-black/20 border border-white/10 rounded-2xl px-3 text-xs font-bold text-white focus:border-blue-500 outline-none"
                   >
                     <option value="">Me</option>
-                    {members.map(m => (
-                      <option key={m.id} value={m.id}>{m.full_name}</option>
+                    {members.filter(m => m.id !== user?.id).map(m => (
+                      <option key={m.id} value={m.id}>{m.full_name || m.email}</option>
                     ))}
                   </select>
                )}
