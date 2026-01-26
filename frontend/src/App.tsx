@@ -552,6 +552,30 @@ function App() {
   const futureCount = futureTasks.length
 
   const [profileSaving, setProfileSaving] = useState(false)
+
+  const CustomChartTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="glass p-4 rounded-2xl border border-white/10 shadow-2xl min-w-[140px]">
+          <p className="text-white/30 text-[10px] font-black uppercase tracking-widest mb-3 pb-2 border-b border-white/5">{label}</p>
+          <div className="space-y-2">
+            {payload.filter((p: any) => p.dataKey !== 'future').map((p: any) => (
+              <div key={p.dataKey} className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ background: p.color || p.stroke }} />
+                  <span className="text-[10px] font-bold text-white/60 uppercase tracking-tighter">
+                    {p.name === 'Completed' ? 'Done' : p.name}
+                  </span>
+                </div>
+                <span className="text-xs font-black text-white">{p.value ?? 0}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )
+    }
+    return null
+  }
   
   // Task Grouping Logic
   const categorizedTasks = useMemo(() => {
@@ -932,12 +956,9 @@ function App() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff01" />
                   <XAxis dataKey="name" stroke="#ffffff30" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    contentStyle={{ background: '#1a1a1a', border: '1px solid #ffffff10', borderRadius: '12px' }}
-                    itemStyle={{ color: '#ffffff' }}
-                  />
+                  <Tooltip content={<CustomChartTooltip />} />
                   <Area type="monotone" dataKey="backlog" stackId="1" stroke="#ef4444" fillOpacity={1} fill="url(#gradientBacklog)" strokeWidth={2} name="Backlog (Past)" />
-                  <Area type="monotone" dataKey="done" stackId="1" stroke="#22c55e" fillOpacity={1} fill="url(#gradientDone)" strokeWidth={2} name="Completed" />
+                  <Area type="monotone" dataKey="done" stackId="1" stroke="#22c55e" fillOpacity={1} fill="url(#gradientDone)" strokeWidth={2} name="Done" />
                   <Area type="monotone" dataKey="active" stackId="1" stroke="#d946ef" fillOpacity={1} fill="url(#gradientActive)" strokeWidth={2} name="Active (Today)" />
                   <Area type="monotone" dataKey="future" stroke="#60a5fa" fillOpacity={1} fill="url(#gradientFuture)" strokeWidth={2} name="Future (Upcoming)" />
                 </AreaChart>
@@ -954,10 +975,7 @@ function App() {
                 <ReBarChart data={completionData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff01" />
                   <XAxis dataKey="name" stroke="#ffffff30" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    contentStyle={{ background: '#1a1a1a', border: '1px solid #ffffff10', borderRadius: '12px' }}
-                    itemStyle={{ color: '#ffffff' }}
-                  />
+                  <Tooltip content={<CustomChartTooltip />} />
                   <Bar dataKey="value" radius={[10, 10, 10, 10]}>
                     {completionData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
