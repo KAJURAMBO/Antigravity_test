@@ -1011,7 +1011,7 @@ function App() {
 
             {/* Bottom Row: Stats - Stays prominent on mobile */}
             {/* Bottom Row: Stats - 3 Columns Now */}
-            <div ref={statsDropdownRef} className="grid grid-cols-3 gap-3 relative">
+            <div ref={statsDropdownRef} className="grid grid-cols-2 sm:grid-cols-4 gap-3 relative">
               
               {/* BACKLOG CARD (Red) */}
               <div className="relative">
@@ -1170,6 +1170,63 @@ function App() {
                           ))
                         ) : (
                           <p className="p-4 text-[10px] text-white/30 italic text-center">No missions completed 💎</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* FUTURE CARD (Blue) */}
+              <div className="relative">
+                <button 
+                  onMouseDown={(e) => {
+                    e.stopPropagation()
+                    if (dropdownLockRef.current) return
+                    dropdownLockRef.current = true
+                    setTimeout(() => dropdownLockRef.current = false, 300)
+                    
+                    setListStatus('future')
+                    setOpenStatsDropdown(openStatsDropdown === 'future' ? null : 'future')
+                  }}
+                  className={`w-full glass p-3 sm:p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-2 transition-all active:scale-[0.98] ${listStatus === 'future' ? 'border-blue-400/50 bg-blue-400/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full bg-blue-400 ${listStatus === 'future' ? 'shadow-[0_0_8px_rgba(96,165,250,0.5)]' : ''}`} />
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest hidden sm:block">Future</span>
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest sm:hidden">Future</span>
+                  </div>
+                  <span className="text-white font-black text-sm">{futureCount}</span>
+                </button>
+
+                <AnimatePresence>
+                  {openStatsDropdown === 'future' && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute bottom-full left-0 right-0 mb-2 z-50 glass-card border border-white/10 p-2 overflow-hidden shadow-2xl"
+                    >
+                      <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-1">
+                        {futureTasks.length > 0 ? (
+                          futureTasks.map(t => (
+                            <button
+                              key={t.id}
+                              onClick={() => {
+                                setSelectedTask(t)
+                                setOpenStatsDropdown(null)
+                              }}
+                              className="w-full text-left p-3 hover:bg-white/5 rounded-xl transition-all group"
+                            >
+                              <p className="text-[10px] font-bold text-white/80 group-hover:text-blue-400 truncate">{t.title}</p>
+                              <div className="flex items-center justify-between mt-1">
+                                <p className="text-[8px] text-white/30 uppercase tracking-tighter">View Details →</p>
+                                <span className="text-[8px] text-blue-300 font-mono">{new Date(t.created_at).toLocaleDateString()}</span>
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          <p className="p-4 text-[10px] text-white/30 italic text-center">No future missions scheduled 💎</p>
                         )}
                       </div>
                     </motion.div>
