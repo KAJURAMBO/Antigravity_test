@@ -846,20 +846,26 @@ function App() {
 
             {/* Bottom Row: Stats - Stays prominent on mobile */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="glass p-4 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Active</span>
+              <button 
+                onClick={() => setListStatus('active')}
+                className={`glass p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-[0.98] ${listStatus === 'active' ? 'border-primary/50 bg-primary/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full bg-primary ${listStatus === 'active' ? 'shadow-[0_0_8px_rgba(139,92,246,0.5)]' : ''}`} />
+                  <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Active</span>
                 </div>
                 <span className="text-white font-black text-sm">{pendingTasks}</span>
-              </div>
-              <div className="glass p-4 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Completed</span>
+              </button>
+              <button 
+                onClick={() => setListStatus('done')}
+                className={`glass p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-[0.98] ${listStatus === 'done' ? 'border-green-500/50 bg-green-500/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full bg-green-500 ${listStatus === 'done' ? 'shadow-[0_0_8px_rgba(34,197,94,0.5)]' : ''}`} />
+                  <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Done</span>
                 </div>
                 <span className="text-white font-black text-sm">{completedTasks}</span>
-              </div>
+              </button>
             </div>
           </div>
 
