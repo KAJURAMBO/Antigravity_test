@@ -363,21 +363,36 @@ function App() {
     }
 
     const days = analyticsTimeframe === '7d' ? 7 : 30
+    const futureLookahead = 3 // Forecast 3 days ahead
     const dailyData: { [key: string]: number } = {}
     
-    const timeframeDays = Array.from({ length: days }, (_, i) => {
+    // Generate dates: Past + Today + Future
+    const timeframeDays = Array.from({ length: days + futureLookahead }, (_, i) => {
       const d = new Date()
-      d.setDate(d.getDate() - i)
-      return {
-        key: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-        date: d
-      }
-    }).reverse()
+      // i=0 is Today + 3 (Future)
+      // We want range: [Today - days, Today + 3]
+      // Let's align it:
+      // If we iterate i from 0 to Total, we can shift the date.
+      // Easiest is to start from 'days' ago and go forward.
+      return null
+    }).map((_, i) => {
+       const d = new Date()
+       // Shift: Start from (days-1) ago. 
+       // i goes from 0 to (days + future - 1).
+       // We want d - (days - 1) + i ?
+       // Example: 7 days. i=0 should be -6 days ago. i=6 should be Today. i=9 should be Today+3.
+       d.setDate(d.getDate() - (days - 1) + i)
+       return {
+         key: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+         date: d
+       }
+    })
 
     timeframeDays.forEach(day => {
       dailyData[`${day.key}-active`] = 0
       dailyData[`${day.key}-backlog`] = 0
       dailyData[`${day.key}-done`] = 0
+      dailyData[`${day.key}-future`] = 0
     })
 
     const todayKey = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -389,9 +404,6 @@ function App() {
         if (t.is_completed) {
           dailyData[`${key}-done`] = (dailyData[`${key}-done`] || 0) + 1
         } else {
-          // If task is from today, it's 'active'. If from past, it's 'backlog'.
-          // Note: timeframeDays includes past days up to today. 
-          // We can check equality with todayKey since we are looping over dataset.
           const isToday = key === todayKey
           const dDate = new Date(t.created_at)
           dDate.setHours(0,0,0,0)
@@ -401,8 +413,9 @@ function App() {
           if (isToday) {
              dailyData[`${key}-active`] = (dailyData[`${key}-active`] || 0) + 1
           } else if (dDate.getTime() < now.getTime()) {
-             // Only count as backlog if it's strictly in the past (exclude future)
              dailyData[`${key}-backlog`] = (dailyData[`${key}-backlog`] || 0) + 1
+          } else {
+             dailyData[`${key}-future`] = (dailyData[`${key}-future`] || 0) + 1
           }
         }
       }
@@ -414,7 +427,8 @@ function App() {
         : d.date.toLocaleDateString(undefined, { weekday: 'short' }),
       active: dailyData[`${d.key}-active`] || 0,
       backlog: dailyData[`${d.key}-backlog`] || 0,
-      done: dailyData[`${d.key}-done`] || 0
+      done: dailyData[`${d.key}-done`] || 0,
+      future: dailyData[`${d.key}-future`] || 0
     }))
   }, [tasks, analyticsTimeframe])
 
@@ -440,10 +454,19 @@ function App() {
       return d.getTime() < now.getTime()
     }).length
 
+    const future = activeTasks.filter(t => {
+       const d = new Date(t.created_at)
+       d.setHours(0,0,0,0)
+       const now = new Date()
+       now.setHours(0,0,0,0)
+       return d.getTime() > now.getTime()
+    }).length
+
     return [
       { name: 'Done', value: done, color: '#22c55e' },
       { name: 'Active', value: activeToday, color: '#8b5cf6' },
-      { name: 'Backlog', value: backlog, color: '#ef4444' }
+      { name: 'Backlog', value: backlog, color: '#ef4444' },
+      { name: 'Future', value: future, color: '#60a5fa' }
     ]
   }, [tasks])
 
@@ -933,6 +956,10 @@ function App() {
                       <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
                       <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
                     </linearGradient>
+                    <linearGradient id="gradientFuture" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#60a5fa" stopOpacity={0}/>
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff01" />
                   <XAxis dataKey="name" stroke="#ffffff30" fontSize={12} tickLine={false} axisLine={false} />
@@ -943,6 +970,7 @@ function App() {
                   <Area type="monotone" dataKey="backlog" stackId="1" stroke="#ef4444" fillOpacity={1} fill="url(#gradientBacklog)" strokeWidth={2} name="Backlog (Past)" />
                   <Area type="monotone" dataKey="done" stackId="1" stroke="#22c55e" fillOpacity={1} fill="url(#gradientDone)" strokeWidth={2} name="Completed" />
                   <Area type="monotone" dataKey="active" stackId="1" stroke="#8b5cf6" fillOpacity={1} fill="url(#gradientActive)" strokeWidth={2} name="Active (Today)" />
+                  <Area type="monotone" dataKey="future" stackId="1" stroke="#60a5fa" fillOpacity={1} fill="url(#gradientFuture)" strokeWidth={2} name="Future (Upcoming)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
