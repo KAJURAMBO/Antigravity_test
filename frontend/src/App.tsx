@@ -34,6 +34,8 @@ function App() {
   const [newDescription, setNewDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
+  const [devUsername, setDevUsername] = useState('')
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   // Cursor Tracking
   const mouseX = useMotionValue(0)
@@ -96,6 +98,15 @@ function App() {
     }
   }, [token, apiFetch])
 
+  const formatTaskDate = (dateString: string) => {
+    // Ensure the date is treated as UTC if no timezone is provided
+    const date = new Date(dateString.endsWith('Z') || dateString.includes('+') ? dateString : `${dateString}Z`)
+    return {
+      full: date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }),
+      time: date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    }
+  }
+
   useEffect(() => {
     fetchUserProfile()
   }, [fetchUserProfile])
@@ -127,18 +138,28 @@ function App() {
 
   const handleDevLogin = async (username: string) => {
     setAuthLoading(true)
+    console.log('Attempting Dev Login for:', username, 'at', `${API_URL}/auth/dev`)
     try {
       const response = await fetch(`${API_URL}/auth/dev`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username })
       })
+      
+      console.log('Dev Login Response Status:', response.status)
+      if (!response.ok) {
+        throw new Error(`Login failed with status: ${response.status}`)
+      }
+
       const data = await response.json()
+      console.log('Dev Login successful, setting user...')
+      
       localStorage.setItem('token', data.access_token)
       setToken(data.access_token)
       setUser(data.user)
     } catch (error) {
       console.error('Dev login failed:', error)
+      setToast({ message: 'Login connection failed. Check if Backend is running!', type: 'error' })
     } finally {
       setAuthLoading(false)
     }
@@ -334,20 +355,29 @@ function App() {
             <p className="text-xs text-muted-foreground uppercase tracking-widest font-black opacity-30">Secure Google Authentication</p>
           </div>
 
-          {window.location.hostname === 'localhost' && (
+          {['localhost', '127.0.0.1'].includes(window.location.hostname) && (
             <div className="pt-8 border-t border-white/5 space-y-4">
               <h3 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Developer Access</h3>
               <div className="flex gap-2">
                 <input 
                   type="text" 
+                  value={devUsername}
+                  onChange={(e) => setDevUsername(e.target.value)}
                   placeholder="Test Username"
-                  className="input-premium h-12 text-sm text-center"
+                  className="input-premium h-12 text-sm text-center flex-1"
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter') handleDevLogin((e.target as HTMLInputElement).value)
+                    if (e.key === 'Enter') handleDevLogin(devUsername)
                   }}
                 />
+                <button 
+                  onClick={() => handleDevLogin(devUsername)}
+                  disabled={!devUsername.trim() || authLoading}
+                  className="px-4 h-12 glass rounded-2xl border border-white/5 text-primary hover:bg-primary/10 transition-all font-black text-[10px] uppercase tracking-widest whitespace-nowrap"
+                >
+                  {authLoading ? '...' : 'Login'}
+                </button>
               </div>
-              <p className="text-[9px] text-white/20 italic">Type a name and press Enter to simulate a second profile locally.</p>
+              <p className="text-[9px] text-white/20 italic">Enter a name and click Login to simulate a profile locally.</p>
             </div>
           )}
         </motion.div>
@@ -492,7 +522,7 @@ function App() {
       <div className="relative max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
         
         {/* Left Side: Analytics Dashboard */}
-        <aside className="lg:col-span-5 space-y-8">
+        <aside className="lg:col-span-5 space-y-8 order-2 lg:order-1">
           <header className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="p-4 bg-primary/20 rounded-3xl">
@@ -533,7 +563,7 @@ function App() {
                   <XAxis dataKey="name" stroke="#ffffff30" fontSize={12} tickLine={false} axisLine={false} />
                   <Tooltip 
                     contentStyle={{ background: '#1a1a1a', border: '1px solid #ffffff10', borderRadius: '12px' }}
-                    itemStyle={{ color: '#8b5cf6' }}
+                    itemStyle={{ color: '#ffffff' }}
                   />
                   <Area type="monotone" dataKey="tasks" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorTasks)" strokeWidth={3} />
                 </AreaChart>
@@ -550,7 +580,10 @@ function App() {
                 <ReBarChart data={completionData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff01" />
                   <XAxis dataKey="name" stroke="#ffffff30" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid #ffffff10', borderRadius: '12px' }} />
+                  <Tooltip 
+                    contentStyle={{ background: '#1a1a1a', border: '1px solid #ffffff10', borderRadius: '12px' }}
+                    itemStyle={{ color: '#ffffff' }}
+                  />
                   <Bar dataKey="value" radius={[10, 10, 10, 10]}>
                     {completionData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -563,7 +596,7 @@ function App() {
         </aside>
 
         {/* Right Side: To-Do App */}
-        <main className="lg:col-span-7 space-y-8">
+        <main className="lg:col-span-7 space-y-8 order-1 lg:order-2">
           <div className="flex flex-col gap-6 pb-6 border-b border-white/10">
             {/* Top Row: Title and Profile */}
             <div className="flex items-center justify-between gap-4">
@@ -676,12 +709,15 @@ function App() {
                       {task.is_completed && <Check size={24} className="text-white font-black" />}
                     </button>
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className={`text-2xl font-black truncate mb-2 ${task.is_completed ? 'line-through text-muted-foreground' : 'text-white'}`}>
+                    <div 
+                      className="flex-1 min-w-0 cursor-pointer group/title"
+                      onClick={() => setSelectedTask(task)}
+                    >
+                      <h3 className={`text-2xl font-black truncate mb-2 transition-colors ${task.is_completed ? 'line-through text-muted-foreground' : 'text-white group-hover/title:text-primary'}`}>
                         {task.title}
                       </h3>
                       {task.description && (
-                        <p className={`text-lg leading-relaxed mb-4 ${task.is_completed ? 'text-muted-foreground/40' : 'text-muted-foreground'}`}>
+                        <p className={`text-lg leading-relaxed mb-4 line-clamp-2 ${task.is_completed ? 'text-muted-foreground/40' : 'text-muted-foreground'}`}>
                           {task.description}
                         </p>
                       )}
@@ -689,11 +725,11 @@ function App() {
                       <div className="flex flex-wrap items-center gap-4 text-[11px] font-black text-muted-foreground/40 uppercase tracking-[0.1em]">
                         <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
                           <Calendar size={13} className="text-primary" />
-                          {new Date(task.created_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                          {formatTaskDate(task.created_at).full}
                         </div>
                         <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
                           <Clock size={13} className="text-blue-400" />
-                          {new Date(task.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                          {formatTaskDate(task.created_at).time}
                         </div>
                         {task.is_completed && (
                            <div className="flex items-center gap-2 bg-green-500/10 px-3 py-1.5 rounded-xl border border-green-500/20 text-green-500">
@@ -757,6 +793,84 @@ function App() {
               <X size={14} className="text-white/40" />
             </button>
           </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Task Detail Modal */}
+      <AnimatePresence>
+        {selectedTask && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center px-4 sm:px-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedTask(null)}
+              className="absolute inset-0 bg-[#0a0a0a]/80 backdrop-blur-xl"
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-2xl glass-card border border-white/10 p-1 overflow-hidden"
+            >
+              <div className="bg-[#0a0a0a] rounded-[28px] p-8 space-y-8 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                <div className="flex items-start justify-between gap-6">
+                  <div className="space-y-4 flex-1">
+                    <div className="flex items-center gap-3 text-primary">
+                      <ListTodo size={20} />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Objective Details</span>
+                    </div>
+                    <h2 className="text-4xl font-black text-white leading-tight break-words">
+                      {selectedTask.title}
+                    </h2>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedTask(null)}
+                    className="p-3 hover:bg-white/5 rounded-2xl transition-all text-white/30 hover:text-white border border-transparent hover:border-white/10"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="p-6 bg-white/[0.02] rounded-3xl border border-white/5 space-y-4">
+                    <h4 className="text-[10px] font-black text-white/20 uppercase tracking-widest">Description</h4>
+                    <p className="text-xl text-muted-foreground leading-relaxed break-words whitespace-pre-wrap">
+                      {selectedTask.description || "No specific details provided for this objective. 💎"}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <div className="px-5 py-3 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3">
+                      <Calendar size={16} className="text-primary" />
+                      <span className="text-xs font-bold text-white/60">
+                        {formatTaskDate(selectedTask.created_at).full}
+                      </span>
+                    </div>
+                    <div className="px-5 py-3 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3">
+                      <Clock size={16} className="text-blue-400" />
+                      <span className="text-xs font-bold text-white/60">
+                        {formatTaskDate(selectedTask.created_at).time}
+                      </span>
+                    </div>
+                    {selectedTask.is_completed && (
+                      <div className="px-5 py-3 bg-green-500/10 rounded-2xl border border-green-500/20 flex items-center gap-3 text-green-500">
+                        <CheckCircle2 size={16} />
+                        <span className="text-xs font-bold uppercase tracking-widest">Mission Completed</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedTask(null)}
+                  className="w-full h-16 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-black tracking-widest text-xs uppercase transition-all active:scale-[0.98]"
+                >
+                  Return to Dashboard
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
