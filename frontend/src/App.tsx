@@ -103,7 +103,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true)
   const [devUsername, setDevUsername] = useState('')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | '30d'>('7d')
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'today' | '7d' | '30d'>('7d')
   const [scheduledDate, setScheduledDate] = useState('')
   const [listTimeframe, setListTimeframe] = useState<'today' | '7d' | '30d'>('today')
   const [listStatus, setListStatus] = useState<'active' | 'done'>('active')
@@ -330,6 +330,24 @@ function App() {
 
   // Data Analytics Processing
   const chartData = useMemo(() => {
+    if (analyticsTimeframe === 'today') {
+      const hourlyData: { [key: number]: number } = {}
+      const today = new Date().toLocaleDateString()
+      
+      tasks.forEach(t => {
+        const d = new Date(t.created_at)
+        if (d.toLocaleDateString() === today) {
+          const hour = d.getHours()
+          hourlyData[hour] = (hourlyData[hour] || 0) + 1
+        }
+      })
+
+      return Array.from({ length: 24 }, (_, i) => ({
+        name: `${i}:00`,
+        tasks: hourlyData[i] || 0
+      }))
+    }
+
     const days = analyticsTimeframe === '7d' ? 7 : 30
     const dailyData: { [key: string]: number } = {}
     
@@ -338,20 +356,26 @@ function App() {
       d.setDate(d.getDate() - i)
       return {
         key: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-        display: analyticsTimeframe === '30d' 
-          ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-          : d.toLocaleDateString(undefined, { weekday: 'short' })
+        date: d
       }
     }).reverse()
 
     timeframeDays.forEach(day => dailyData[day.key] = 0)
 
-    tasks.forEach(task => {
-      const taskDate = new Date(task.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-      if (dailyData[taskDate] !== undefined) dailyData[taskDate]++
+    tasks.forEach(t => {
+      const d = new Date(t.created_at)
+      const key = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      if (timeframeDays.some(td => td.key === key)) {
+        dailyData[key] = (dailyData[key] || 0) + 1
+      }
     })
 
-    return timeframeDays.map(day => ({ name: day.display, tasks: dailyData[day.key] }))
+    return timeframeDays.map(d => ({
+      name: analyticsTimeframe === '30d' 
+        ? d.key
+        : d.date.toLocaleDateString(undefined, { weekday: 'short' }),
+      tasks: dailyData[d.key] || 0
+    }))
   }, [tasks, analyticsTimeframe])
 
   const completionData = useMemo(() => {
@@ -704,7 +728,7 @@ function App() {
                   <div className="flex items-center gap-4 mt-2">
                     <p className="text-muted-foreground text-xl">Efficiency & Performance ✨</p>
                     <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
-                      {(['7d', '30d'] as const).map((tf) => (
+                      {(['today', '7d', '30d'] as const).map((tf) => (
                         <button
                           key={tf}
                           onClick={() => setAnalyticsTimeframe(tf)}
@@ -884,20 +908,20 @@ function App() {
             {/* Advanced Filter Bar relocated - Logic and Contextual view */}
             <div className="flex flex-wrap items-center gap-4 bg-white/[0.02] p-2 rounded-[22px] border border-white/5 mx-4">
               <div className="flex p-1 bg-black/20 rounded-xl border border-white/5">
-                {(['today', '7d', '30d'] as const).map((tf) => (
-                  <button
-                    key={tf}
-                    onClick={() => setListTimeframe(tf)}
-                    className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all ${
-                      listTimeframe === tf 
-                      ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                      : 'text-white/30 hover:text-white'
-                    }`}
-                  >
-                    {tf === 'today' ? 'Today' : tf.toUpperCase()}
-                  </button>
-                ))}
-              </div>
+              {(['today', '7d', '30d'] as const).map((tf) => (
+                <button
+                  key={tf}
+                  onClick={() => setListTimeframe(tf)}
+                  className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all ${
+                    listTimeframe === tf 
+                    ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                    : 'text-white/30 hover:text-white'
+                  }`}
+                >
+                  {tf === 'today' ? 'Today' : tf.toUpperCase()}
+                </button>
+              ))}
+            </div>
               
               <div className="h-6 w-px bg-white/10 hidden sm:block" />
 
