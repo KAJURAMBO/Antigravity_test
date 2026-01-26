@@ -118,7 +118,7 @@ function App() {
   const [scheduledDate, setScheduledDate] = useState('')
   const [listTimeframe, setListTimeframe] = useState<'today' | '7d' | '30d'>('today')
   const [listStatus, setListStatus] = useState<'active' | 'backlog' | 'done' | 'future'>('active')
-  const [viewMode, setViewMode] = useState<'board' | 'team'>('board')
+  const [viewMode, setViewMode] = useState<'board' | 'team' | 'profile'>('board')
 
   // Edit Task States
   const [isEditingTask, setIsEditingTask] = useState(false)
@@ -532,7 +532,6 @@ function App() {
   const backlogCount = backlogTasks.length
   const futureCount = futureTasks.length
 
-  const [showProfile, setShowProfile] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
   
   // Task Grouping Logic
@@ -762,132 +761,6 @@ function App() {
     )
   }
 
-  if (showProfile) {
-    return (
-      <div className="relative min-h-screen py-8 px-4 sm:px-6 lg:px-12 overflow-hidden bg-[#0a0a0a]">
-        <motion.div 
-          className="cursor-spotlight"
-          style={{ x: springX, y: springY, translateX: '-50%', translateY: '-50%' }}
-        />
-        
-        <div className="relative max-w-4xl mx-auto space-y-12">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <button 
-              onClick={() => setShowProfile(false)}
-              className="flex items-center gap-2 text-white/40 hover:text-white transition-colors group"
-            >
-              <Layout size={20} className="group-hover:text-primary transition-colors" />
-              <span className="text-sm font-black uppercase tracking-widest">Back to Board</span>
-            </button>
-            <h1 className="text-2xl font-black text-white tracking-tighter uppercase italic">User Profile</h1>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start">
-            {/* Left: Avatar Upload */}
-            <div className="md:col-span-4 space-y-6">
-              <div className="glass p-8 rounded-[40px] border border-white/5 text-center relative group">
-                <div className="relative w-32 h-32 mx-auto mb-6">
-                  {user.picture ? (
-                    <img src={user.picture.startsWith('/') ? `${API_URL}${user.picture}` : user.picture} className="w-full h-full rounded-[32px] object-cover border-4 border-white/5 shadow-2xl" alt="" />
-                  ) : (
-                    <div className="w-full h-full rounded-[32px] bg-white/5 flex items-center justify-center border-4 border-white/5">
-                      <UserIcon size={48} className="text-white/20" />
-                    </div>
-                  )}
-                  <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-primary rounded-2xl flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all shadow-xl shadow-primary/40">
-                    <LogOut size={16} className="text-white -rotate-90" />
-                    <input type="file" className="hidden" onChange={handlePictureUpload} accept="image/*" />
-                  </label>
-                </div>
-                <h3 className="text-xl font-black text-white truncate">{user.full_name || 'User'}</h3>
-                <p className="text-xs text-white/30 font-bold truncate">{user.email}</p>
-              </div>
-            </div>
-
-            {/* Right: Personalization Form */}
-            <div className="md:col-span-8 space-y-8">
-              <div className="glass p-10 rounded-[40px] border border-white/5 space-y-8">
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-2">Display Name</label>
-                    <input 
-                      type="text" 
-                      value={editingName}
-                      onChange={(e) => setEditingName(e.target.value)}
-                      placeholder="Identify yourself..."
-                      className="input-premium h-14"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-2">Bio / Objectives</label>
-                    <textarea 
-                      value={editingBio}
-                      onChange={(e) => setEditingBio(e.target.value)}
-                      placeholder="What drives you? 🚀"
-                      className="input-premium py-4 min-h-[120px] resize-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={handleUpdateProfile}
-                    disabled={profileSaving}
-                    className="button-premium flex-1 bg-gradient-to-r from-primary to-blue-600 h-14 text-sm font-black tracking-[0.1em]"
-                  >
-                    {profileSaving ? 'SYNCHRONIZING...' : 'SAVE CHANGES'}
-                  </button>
-                  <button 
-                     onClick={handleLogout}
-                     className="px-6 h-14 glass rounded-2xl border border-white/5 text-red-500 hover:bg-red-500/10 transition-all font-black text-xs uppercase tracking-widest"
-                  >
-                    Logout
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-8 border border-dashed border-white/10 rounded-[40px] opacity-40">
-                <p className="text-xs text-center text-white font-medium leading-relaxed">
-                  Your profile data is securely stored and used to personalize your task management experience. 
-                  Profile pictures are hosted on our secure storage.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Global Notifications inside Profile */}
-        <AnimatePresence>
-          {toast && (
-            <motion.div
-              initial={{ opacity: 0, y: 50, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.9 }}
-              className={`fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] px-6 py-4 rounded-2xl border flex items-center gap-4 shadow-2xl min-w-[300px] justify-between ${
-                toast.type === 'success' 
-                ? 'bg-[#121212] border-green-500/30 text-green-500' 
-                : 'bg-[#121212] border-red-500/30 text-red-500'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                {toast.type === 'success' ? <CheckCircle2 size={18} /> : <Clock size={18} className="rotate-45" />}
-                <span className="text-xs font-black uppercase tracking-widest text-white">{toast.message}</span>
-              </div>
-              <button 
-                onClick={() => setToast(null)}
-                className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <X size={14} className="text-white/40" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    )
-  }
-
   return (
     <div className="relative min-h-screen py-8 px-4 sm:px-6 lg:px-12 overflow-hidden bg-[#0a0a0a]">
       {/* Interactive Cursor Spotlight */}
@@ -921,11 +794,12 @@ function App() {
           <div className="hidden lg:block w-full h-px bg-white/5 my-2" />
 
           <button 
-            onClick={() => setShowProfile(true)}
-            className="p-4 rounded-2xl text-white/40 hover:bg-white/10 hover:text-white transition-all group relative flex items-center justify-center"
+            onClick={() => setViewMode('profile')}
+            className={`p-4 rounded-2xl transition-all group relative flex items-center justify-center ${viewMode === 'profile' ? 'bg-white/20 text-white shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'text-white/40 hover:bg-white/10 hover:text-white'}`}
             title="Profile Settings"
           >
             <Settings size={22} />
+            {viewMode === 'profile' && <motion.div layoutId="nav-pill" className="absolute -bottom-1 lg:-bottom-auto lg:-right-3 w-4 lg:w-1 h-1 lg:h-8 bg-white rounded-full" />}
           </button>
         </nav>
 
@@ -1073,7 +947,81 @@ function App() {
 
         {/* Right Side: To-Do App */}
         <main className="flex-1 space-y-8 order-1 lg:order-none">
-          {viewMode === 'team' && user ? (
+          {viewMode === 'profile' && user ? (
+            <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center justify-between">
+                <h2 className="text-3xl font-black text-white tracking-tight uppercase italic">User Profile</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+                {/* Right: Personalization Form (Order 1 on mobile) */}
+                <div className="md:col-span-8 space-y-8 order-1">
+                  <div className="glass p-8 sm:p-10 rounded-[40px] border border-white/5 space-y-8">
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-2">Display Name</label>
+                        <input 
+                          type="text" 
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          placeholder="Identify yourself..."
+                          className="input-premium h-14"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-2">Bio / Objectives</label>
+                        <textarea 
+                          value={editingBio}
+                          onChange={(e) => setEditingBio(e.target.value)}
+                          placeholder="What drives you? 🚀"
+                          className="input-premium py-4 min-h-[120px] resize-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <button 
+                        onClick={handleUpdateProfile}
+                        disabled={profileSaving}
+                        className="button-premium flex-1 bg-gradient-to-r from-primary to-blue-600 h-14 text-sm font-black tracking-[0.1em]"
+                      >
+                        {profileSaving ? 'SYNCHRONIZING...' : 'SAVE CHANGES'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Left: Avatar Upload (Order 2 on mobile) */}
+                <div className="md:col-span-4 space-y-6 order-2">
+                  <div className="glass p-8 rounded-[40px] border border-white/5 text-center relative group">
+                    <div className="relative w-32 h-32 mx-auto mb-6">
+                      {user.picture ? (
+                        <img src={user.picture.startsWith('/') ? `${API_URL}${user.picture}` : user.picture} className="w-full h-full rounded-[32px] object-cover border-4 border-white/5 shadow-2xl" alt="" />
+                      ) : (
+                        <div className="w-full h-full rounded-[32px] bg-white/5 flex items-center justify-center border-4 border-white/5">
+                          <UserIcon size={48} className="text-white/20" />
+                        </div>
+                      )}
+                      <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-primary rounded-2xl flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all shadow-xl shadow-primary/40">
+                        <LogOut size={16} className="text-white -rotate-90" />
+                        <input type="file" className="hidden" onChange={handlePictureUpload} accept="image/*" />
+                      </label>
+                    </div>
+                    <h3 className="text-xl font-black text-white truncate">{user.full_name || 'User'}</h3>
+                    <p className="text-xs text-white/30 font-bold truncate">{user.email}</p>
+                    
+                    <button 
+                       onClick={handleLogout}
+                       className="w-full mt-6 py-3 glass rounded-2xl border border-white/5 text-red-500 hover:bg-red-500/10 transition-all font-black text-[10px] uppercase tracking-widest"
+                    >
+                      Logout Session
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : viewMode === 'team' && user ? (
              <TeamView apiFetch={apiFetch} currentUser={user} showToast={showToast} />
           ) : (
           <>
@@ -1088,8 +1036,8 @@ function App() {
               </div>
 
               {/* Profile Section - Integrated into top row for accessibility */}
-              <div 
-                onClick={() => setShowProfile(true)}
+                <div 
+                onClick={() => setViewMode('profile')}
                 className="flex items-center gap-2 sm:gap-3 glass py-1.5 px-2 sm:px-2.5 rounded-2xl border border-white/5 bg-white/[0.02] cursor-pointer hover:bg-white/5 transition-colors"
               >
                 {user.picture ? (
