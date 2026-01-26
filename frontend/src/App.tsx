@@ -374,7 +374,11 @@ function App() {
       future: tasks.filter(t => {
         const d = new Date(t.created_at)
         d.setHours(0, 0, 0, 0)
-        return d > now
+        const isFuture = d > now
+        if (!isFuture) return false
+        
+        // Filter future tasks by selected status
+        return listStatus === 'active' ? !t.is_completed : t.is_completed
       })
     }
   }, [tasks, listTimeframe, listStatus])
