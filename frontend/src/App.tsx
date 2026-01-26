@@ -536,7 +536,7 @@ function App() {
       backlog: tasks.filter(t => {
         const d = new Date(t.created_at)
         d.setHours(0, 0, 0, 0)
-        return d < now && !t.is_completed
+        return d.getTime() < now.getTime() && !t.is_completed
       }),
       future: tasks.filter(t => {
         const d = new Date(t.created_at)
