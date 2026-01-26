@@ -1069,9 +1069,10 @@ function App() {
                     {!isEditingTask && (
                       <button 
                         onClick={() => setIsEditingTask(true)}
-                        className="p-3 bg-primary/10 hover:bg-primary/20 rounded-2xl transition-all text-primary border border-primary/20"
+                        className="px-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-xl transition-all text-primary border border-primary/20 flex items-center gap-2 font-black text-[10px] tracking-widest"
                       >
-                        <TrendingUp size={20} />
+                        <TrendingUp size={16} />
+                        EDIT
                       </button>
                     )}
                     <button 
