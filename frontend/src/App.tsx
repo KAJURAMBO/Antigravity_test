@@ -177,6 +177,16 @@ function App() {
     }
   }, [token, apiFetch])
 
+  const fetchMembers = useCallback(async () => {
+    if (!token) return
+    try {
+      const data = await apiFetch('/teams/members')
+      if (data) setMembers(data)
+    } catch (error) {
+       console.error('Error fetching members:', error)
+    }
+  }, [token, apiFetch])
+
   const fetchUserProfile = useCallback(async () => {
     if (!token) {
       setAuthLoading(false)
@@ -185,13 +195,16 @@ function App() {
     try {
       const data = await apiFetch('/users/me')
       setUser(data)
+      fetchMembers() // Fetch members after user profile
     } catch (error) {
       console.error('Error fetching profile:', error)
       handleLogout()
     } finally {
       setAuthLoading(false)
     }
-  }, [token, apiFetch])
+  }, [token, apiFetch, fetchMembers])
+
+  // ... existing code ...
 
   const formatTaskDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -1431,6 +1444,7 @@ function App() {
               </div>
             )}
           </div>
+          )}
         </main>
       </div>
 
