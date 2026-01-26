@@ -367,15 +367,7 @@ function App() {
     const dailyData: { [key: string]: number } = {}
     
     // Generate dates: Past + Today + Future
-    const timeframeDays = Array.from({ length: days + futureLookahead }, (_, i) => {
-      const d = new Date()
-      // i=0 is Today + 3 (Future)
-      // We want range: [Today - days, Today + 3]
-      // Let's align it:
-      // If we iterate i from 0 to Total, we can shift the date.
-      // Easiest is to start from 'days' ago and go forward.
-      return null
-    }).map((_, i) => {
+    const timeframeDays = Array.from({ length: days + futureLookahead }).map((_, i) => {
        const d = new Date()
        // Shift: Start from (days-1) ago. 
        // i goes from 0 to (days + future - 1).
@@ -394,8 +386,6 @@ function App() {
       dailyData[`${day.key}-done`] = 0
       dailyData[`${day.key}-future`] = 0
     })
-
-    const todayKey = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 
     tasks.forEach(t => {
       const d = new Date(t.created_at)
