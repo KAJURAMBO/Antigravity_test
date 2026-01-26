@@ -24,34 +24,43 @@ def reset_db_and_tables():
 
 def smart_initialize_db():
     """
-    Attempts to initialize the database normally.
-    If it detects missing columns (ProgrammingError), it performs a reset.
+    Ensures tables and columns exist using SQLAlchemy inspector.
+    If core columns or tables are missing, it triggers a reset.
     """
+    from sqlalchemy import inspect
+
     try:
-        # First, ensure tables exist
+        # Ensure basics exist first
         create_db_and_tables()
 
-        # Test if the new columns (e.g., bio, assignee_id) exist
-        with Session(engine) as session:
-            # Check user.bio (previous change)
-            session.exec(text('SELECT bio FROM "user" LIMIT 1'))
-            # Check task.assignee_id (new change)
-            session.exec(text("SELECT assignee_id FROM task LIMIT 1"))
-            print("Database schema verified. (Smart Initialization)")
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
 
-    except ProgrammingError as e:
-        err = str(e).lower()
-        if ("undefinedcolumn" in err or "does not exist" in err) and (
-            "bio" in err or "assignee_id" in err or "team" in err
-        ):
-            print(f"Schema mismatch detected: {e}. Resetting database...")
+        # Check for new tables
+        if "team" not in tables or "teammember" not in tables:
+            print("Missing collaboration tables. Resetting database...")
             reset_db_and_tables()
-        else:
-            # Re-raise if it's a different programming error
-            raise e
+            return
+
+        # Check for new columns in Task
+        task_columns = [c["name"] for c in inspector.get_columns("task")]
+        if "assignee_id" not in task_columns:
+            print("Missing 'assignee_id' in task table. Resetting database...")
+            reset_db_and_tables()
+            return
+
+        # Check for new columns in User
+        user_columns = [c["name"] for c in inspector.get_columns("user")]
+        if "bio" not in user_columns:
+            print("Missing 'bio' in user table. Resetting database...")
+            reset_db_and_tables()
+            return
+
+        print("Database schema successfully verified.")
+
     except Exception as e:
-        # Fallback for other issues (like table not existing at all yet)
-        print(f"Initialization notice: {e}. Ensuring tables exist.")
+        print(f"Smart Initialization error: {e}")
+        # Final fallback: just try to create what's missing
         create_db_and_tables()
 
 
