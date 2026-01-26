@@ -545,6 +545,10 @@ function App() {
       taskDate.setHours(0, 0, 0, 0)
       
       if (listTimeframe === 'today') {
+        // Special Case: If viewing "Done", act as "Done History".
+        // Allow Future Completed tasks to appear in Today's Done list so they don't vanish.
+        if (listStatus === 'done' && taskDate.getTime() > now.getTime()) return true
+        
         return taskDate.toLocaleDateString() === todayStr
       } else if (listTimeframe === '7d') {
         return isWithinDays(t.created_at, 7)
