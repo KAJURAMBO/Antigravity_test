@@ -1252,8 +1252,8 @@ function App() {
               </div>
             )}
 
-            {/* Future Objectives */}
-            {categorizedTasks.future.length > 0 && (
+            {/* Future Objectives - Hide if viewing backlog */}
+            {categorizedTasks.future.length > 0 && listStatus !== 'backlog' && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between px-4">
                   <h2 className="text-sm font-bold text-blue-400 uppercase tracking-[0.3em] flex items-center gap-3">
