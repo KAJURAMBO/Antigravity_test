@@ -106,14 +106,14 @@ function App() {
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'today' | '7d' | '30d'>('7d')
   const [scheduledDate, setScheduledDate] = useState('')
   const [listTimeframe, setListTimeframe] = useState<'today' | '7d' | '30d'>('today')
-  const [listStatus, setListStatus] = useState<'active' | 'done'>('active')
+  const [listStatus, setListStatus] = useState<'active' | 'backlog' | 'done'>('active')
 
   // Edit Task States
   const [isEditingTask, setIsEditingTask] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editDate, setEditDate] = useState('')
-  const [openStatsDropdown, setOpenStatsDropdown] = useState<'active' | 'done' | null>(null)
+  const [openStatsDropdown, setOpenStatsDropdown] = useState<'active' | 'backlog' | 'done' | null>(null)
 
   // Dropdown Refs
   const statsDropdownRef = useRef<HTMLDivElement>(null)
@@ -376,8 +376,11 @@ function App() {
 
     timeframeDays.forEach(day => {
       dailyData[`${day.key}-active`] = 0
+      dailyData[`${day.key}-backlog`] = 0
       dailyData[`${day.key}-done`] = 0
     })
+
+    const todayKey = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 
     tasks.forEach(t => {
       const d = new Date(t.created_at)
@@ -386,7 +389,15 @@ function App() {
         if (t.is_completed) {
           dailyData[`${key}-done`] = (dailyData[`${key}-done`] || 0) + 1
         } else {
-          dailyData[`${key}-active`] = (dailyData[`${key}-active`] || 0) + 1
+          // If task is from today, it's 'active'. If from past, it's 'backlog'.
+          // Note: timeframeDays includes past days up to today. 
+          // We can check equality with todayKey since we are looping over dataset.
+          const isToday = key === todayKey
+          if (isToday) {
+             dailyData[`${key}-active`] = (dailyData[`${key}-active`] || 0) + 1
+          } else {
+             dailyData[`${key}-backlog`] = (dailyData[`${key}-backlog`] || 0) + 1
+          }
         }
       }
     })
@@ -396,6 +407,7 @@ function App() {
         ? d.key
         : d.date.toLocaleDateString(undefined, { weekday: 'short' }),
       active: dailyData[`${d.key}-active`] || 0,
+      backlog: dailyData[`${d.key}-backlog`] || 0,
       done: dailyData[`${d.key}-done`] || 0
     }))
   }, [tasks, analyticsTimeframe])
@@ -422,8 +434,15 @@ function App() {
     ]
   }, [tasks])
 
-  const pendingTasks = tasks.filter(t => !t.is_completed).length
   const completedTasks = tasks.filter(t => t.is_completed).length
+  const activeTasksTotal = tasks.filter(t => !t.is_completed)
+  
+  const todayDateStr = new Date().toLocaleDateString()
+  const activeTodayTasks = activeTasksTotal.filter(t => new Date(t.created_at).toLocaleDateString() === todayDateStr)
+  const backlogTasks = activeTasksTotal.filter(t => new Date(t.created_at).toLocaleDateString() !== todayDateStr)
+  
+  const activeTodayCount = activeTodayTasks.length
+  const backlogCount = backlogTasks.length
 
   const [showProfile, setShowProfile] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
@@ -445,10 +464,40 @@ function App() {
 
     const filteredFocus = tasks.filter(t => {
       // 1. Filter by Status
-      if (listStatus === 'active' && t.is_completed) return false
+      if (listStatus === 'backlog') {
+         // Backlog view only shows incomplete tasks from BEFORE today (regardless of timeframe)
+         // OR strict enforcement: Backlog status ignores 'listTimeframe' usually? 
+         // User Request: "Active" = Purple, "Backlog" = Red.
+         // Let's rely on the definition: Backlog = Not Completed AND Date < Today.
+         const d = new Date(t.created_at)
+         d.setHours(0,0,0,0)
+         if (d.getTime() >= now.getTime()) return false
+         return !t.is_completed
+         
+      }
+      if (listStatus === 'active') {
+          // Active = Not Completed AND Date == Today (since future is separate)
+          // Actually, standard "Active" usually implies "Current Focus".
+          // If we separate Backlog, then "Active" in the list should probably allow the user to see tasks fitting the timeframe.
+          // IF timeframe=Today, Active = Today's tasks.
+          
+          if (t.is_completed) return false
+          // If filtering by status 'active', exclude backlog items (older than today) if we want strict separation
+          // But usually timeframe handles the date.
+          // Let's follow UI logic: 
+          // If I click "Active" Card, I expect to see Active tasks.
+          // If I click "Backlog" Card, I expect to see Backlog tasks.
+          
+          // Strict separation logic:
+          const d = new Date(t.created_at)
+          d.setHours(0,0,0,0)
+          if (d.getTime() < now.getTime()) return false // Old tasks go to Backlog view
+      } 
       if (listStatus === 'done' && !t.is_completed) return false
 
-      // 2. Filter by Timeframe
+      // 2. Filter by Timeframe (Only applies to Done and Active-Future/Today?)
+      // Actually if I click "Backlog", I probably want to see ALL backlog.
+      if (listStatus === 'backlog') return true
       const taskDate = new Date(t.created_at)
       taskDate.setHours(0, 0, 0, 0)
       
@@ -476,7 +525,9 @@ function App() {
         if (!isFuture) return false
         
         // Filter future tasks by selected status
-        return listStatus === 'active' ? !t.is_completed : t.is_completed
+        if (listStatus === 'done') return t.is_completed
+        if (listStatus === 'backlog') return !t.is_completed // Future tasks aren't backlog yet, but showing them if explicitly viewing backlog might be weird. Stick to Active/Done.
+        return !t.is_completed
       })
     }
   }, [tasks, listTimeframe, listStatus])
@@ -801,6 +852,10 @@ function App() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
+                    <linearGradient id="colorBacklog" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                    </linearGradient>
                     <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
                       <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
@@ -817,7 +872,8 @@ function App() {
                     itemStyle={{ color: '#ffffff' }}
                   />
                   <Area type="monotone" dataKey="done" stackId="1" stroke="#22c55e" fillOpacity={1} fill="url(#colorDone)" strokeWidth={2} name="Completed" />
-                  <Area type="monotone" dataKey="active" stackId="1" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorActive)" strokeWidth={2} name="Backlog (Active)" />
+                  <Area type="monotone" dataKey="active" stackId="1" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorActive)" strokeWidth={2} name="Active (Today)" />
+                  <Area type="monotone" dataKey="backlog" stackId="1" stroke="#ef4444" fillOpacity={1} fill="url(#colorBacklog)" strokeWidth={2} name="Backlog (Past)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -885,7 +941,67 @@ function App() {
             </div>
 
             {/* Bottom Row: Stats - Stays prominent on mobile */}
-            <div ref={statsDropdownRef} className="grid grid-cols-2 gap-4 relative">
+            {/* Bottom Row: Stats - 3 Columns Now */}
+            <div ref={statsDropdownRef} className="grid grid-cols-3 gap-3 relative">
+              
+              {/* BACKLOG CARD (Red) */}
+              <div className="relative">
+                <button 
+                  onMouseDown={(e) => {
+                    e.stopPropagation()
+                    if (dropdownLockRef.current) return
+                    dropdownLockRef.current = true
+                    setTimeout(() => dropdownLockRef.current = false, 300)
+                    
+                    setListStatus('backlog')
+                    setOpenStatsDropdown(openStatsDropdown === 'backlog' ? null : 'backlog')
+                  }}
+                  className={`w-full glass p-3 sm:p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-2 transition-all active:scale-[0.98] ${listStatus === 'backlog' ? 'border-red-500/50 bg-red-500/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full bg-red-500 ${listStatus === 'backlog' ? 'shadow-[0_0_8px_rgba(239,68,68,0.5)]' : ''}`} />
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest hidden sm:block">Backlog</span>
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest sm:hidden">Old</span>
+                  </div>
+                  <span className="text-white font-black text-sm">{backlogCount}</span>
+                </button>
+
+                <AnimatePresence>
+                  {openStatsDropdown === 'backlog' && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute top-full left-0 right-0 mt-2 z-50 glass-card border border-white/10 p-2 overflow-hidden shadow-2xl"
+                    >
+                      <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-1">
+                        {backlogTasks.length > 0 ? (
+                          backlogTasks.map(t => (
+                            <button
+                              key={t.id}
+                              onClick={() => {
+                                setSelectedTask(t)
+                                setOpenStatsDropdown(null)
+                              }}
+                              className="w-full text-left p-3 hover:bg-white/5 rounded-xl transition-all group"
+                            >
+                              <p className="text-[10px] font-bold text-white/80 group-hover:text-red-500 truncate">{t.title}</p>
+                              <div className="flex items-center justify-between mt-1">
+                                <p className="text-[8px] text-white/30 uppercase tracking-tighter">View Details →</p>
+                                <span className="text-[8px] text-red-400 font-mono">{new Date(t.created_at).toLocaleDateString()}</span>
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          <p className="p-4 text-[10px] text-white/30 italic text-center">No backlog debt 💎</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* ACTIVE CARD (Purple) */}
               <div className="relative">
                 <button 
                   onMouseDown={(e) => {
@@ -897,13 +1013,14 @@ function App() {
                     setListStatus('active')
                     setOpenStatsDropdown(openStatsDropdown === 'active' ? null : 'active')
                   }}
-                  className={`w-full glass p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-[0.98] ${listStatus === 'active' ? 'border-primary/50 bg-primary/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
+                  className={`w-full glass p-3 sm:p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-2 transition-all active:scale-[0.98] ${listStatus === 'active' ? 'border-primary/50 bg-primary/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
                 >
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full bg-primary ${listStatus === 'active' ? 'shadow-[0_0_8px_rgba(139,92,246,0.5)]' : ''}`} />
-                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Active</span>
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest hidden sm:block">Active</span>
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest sm:hidden">Today</span>
                   </div>
-                  <span className="text-white font-black text-sm">{pendingTasks}</span>
+                  <span className="text-white font-black text-sm">{activeTodayCount}</span>
                 </button>
 
                 <AnimatePresence>
@@ -915,8 +1032,8 @@ function App() {
                       className="absolute top-full left-0 right-0 mt-2 z-50 glass-card border border-white/10 p-2 overflow-hidden shadow-2xl"
                     >
                       <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-1">
-                        {tasks.filter(t => !t.is_completed).length > 0 ? (
-                          tasks.filter(t => !t.is_completed).map(t => (
+                        {activeTodayTasks.length > 0 ? (
+                          activeTodayTasks.map(t => (
                             <button
                               key={t.id}
                               onClick={() => {
@@ -930,7 +1047,7 @@ function App() {
                             </button>
                           ))
                         ) : (
-                          <p className="p-4 text-[10px] text-white/30 italic text-center">No active missions 💎</p>
+                          <p className="p-4 text-[10px] text-white/30 italic text-center">No active missions today 💎</p>
                         )}
                       </div>
                     </motion.div>
@@ -938,6 +1055,7 @@ function App() {
                 </AnimatePresence>
               </div>
 
+              {/* DONE CARD (Green) */}
               <div className="relative">
                 <button 
                   onMouseDown={(e) => {
@@ -949,11 +1067,12 @@ function App() {
                     setListStatus('done')
                     setOpenStatsDropdown(openStatsDropdown === 'done' ? null : 'done')
                   }}
-                  className={`w-full glass p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-[0.98] ${listStatus === 'done' ? 'border-green-500/50 bg-green-500/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
+                  className={`w-full glass p-3 sm:p-4 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-2 transition-all active:scale-[0.98] ${listStatus === 'done' ? 'border-green-500/50 bg-green-500/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
                 >
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full bg-green-500 ${listStatus === 'done' ? 'shadow-[0_0_8px_rgba(34,197,94,0.5)]' : ''}`} />
-                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Done</span>
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest hidden sm:block">Done</span>
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest sm:hidden">Done</span>
                   </div>
                   <span className="text-white font-black text-sm">{completedTasks}</span>
                 </button>
@@ -1055,18 +1174,18 @@ function App() {
               <div className="h-6 w-px bg-white/10 hidden sm:block" />
 
               <div className="flex p-1 bg-black/20 rounded-xl border border-white/5">
-                {(['active', 'done'] as const).map((st) => (
+                {(['backlog', 'active', 'done'] as const).map((st) => (
                   <button
                     key={st}
                     onClick={() => setListStatus(st)}
                     className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all flex items-center gap-2 ${
                       listStatus === st 
-                      ? (st === 'active' ? 'bg-primary' : 'bg-green-600') + ' text-white shadow-lg shadow-white/10' 
+                      ? (st === 'backlog' ? 'bg-red-500' : st === 'active' ? 'bg-primary' : 'bg-green-600') + ' text-white shadow-lg shadow-white/10' 
                       : 'text-white/30 hover:text-white'
                     }`}
                   >
-                    {st === 'active' ? <Clock size={10} /> : <CheckCircle2 size={10} />}
-                    {st}
+                    {st === 'backlog' ? '⚠️' : st === 'active' ? <Clock size={10} /> : <CheckCircle2 size={10} />}
+                    {st === 'backlog' ? 'BACKLOG' : st.toUpperCase()}
                   </button>
                 ))}
               </div>
@@ -1077,10 +1196,10 @@ function App() {
               <div className="flex items-center justify-between px-4">
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-[0.3em] flex items-center gap-3">
                   {listTimeframe === 'today' ? "Today's" : listTimeframe.toUpperCase()} Focus 
-                  <span className={`w-2 h-2 rounded-full ${listStatus === 'active' ? 'bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]' : 'bg-green-500'}`} />
+                  <span className={`w-2 h-2 rounded-full ${listStatus === 'backlog' ? 'bg-red-500' : listStatus === 'active' ? 'bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]' : 'bg-green-500'}`} />
                 </h2>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${listStatus === 'active' ? 'bg-primary/10 text-primary' : 'bg-green-500/10 text-green-500'}`}>
-                  {listStatus}
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${listStatus === 'backlog' ? 'bg-red-500/10 text-red-500' : listStatus === 'active' ? 'bg-primary/10 text-primary' : 'bg-green-500/10 text-green-500'}`}>
+                  {listStatus === 'backlog' ? 'BACKLOG' : listStatus.toUpperCase()}
                 </span>
               </div>
               
