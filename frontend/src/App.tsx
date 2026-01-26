@@ -401,15 +401,10 @@ function App() {
       const d = new Date(t.created_at)
       const key = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
       if (timeframeDays.some(td => td.key === key)) {
-        if (t.is_completed) {
-          dailyData[`${key}-done`] = (dailyData[`${key}-done`] || 0) + 1
-        } else {
           const dDate = new Date(t.created_at)
-          dDate.setHours(0,0,0,0)
           const now = new Date()
-          now.setHours(0,0,0,0)
-
-          if (dDate.getTime() === now.getTime()) {
+          
+          if (dDate.toDateString() === now.toDateString()) {
              dailyData[`${key}-active`] = (dailyData[`${key}-active`] || 0) + 1
           } else if (dDate.getTime() < now.getTime()) {
              dailyData[`${key}-backlog`] = (dailyData[`${key}-backlog`] || 0) + 1
