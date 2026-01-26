@@ -56,6 +56,7 @@ class TaskUpdate(SQLModel):
     title: Optional[str] = None
     description: Optional[str] = None
     is_completed: Optional[bool] = None
+    created_at: Optional[datetime] = None
 
 
 class UserUpdate(SQLModel):

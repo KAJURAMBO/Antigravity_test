@@ -108,6 +108,12 @@ function App() {
   const [listTimeframe, setListTimeframe] = useState<'today' | '7d' | '30d'>('today')
   const [listStatus, setListStatus] = useState<'active' | 'done'>('active')
 
+  // Edit Task States
+  const [isEditingTask, setIsEditingTask] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editDate, setEditDate] = useState('')
+
   // Cursor Tracking
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
@@ -180,6 +186,15 @@ function App() {
   useEffect(() => {
     fetchUserProfile()
   }, [fetchUserProfile])
+
+  useEffect(() => {
+    if (selectedTask) {
+      setEditTitle(selectedTask.title)
+      setEditDescription(selectedTask.description || '')
+      setEditDate(new Date(selectedTask.created_at).toISOString().split('T')[0])
+      setIsEditingTask(false)
+    }
+  }, [selectedTask])
 
   useEffect(() => {
     if (user) {
@@ -286,6 +301,30 @@ function App() {
       setTasks(tasks.filter(t => t.id !== id))
     } catch (error) {
       console.error('Error deleting task:', error)
+    }
+  }
+
+  const handleUpdateTaskDetail = async () => {
+    if (!selectedTask || !editTitle.trim()) return
+    setLoading(true)
+    try {
+      const updated = await apiFetch(`/tasks/${selectedTask.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: editTitle,
+          description: editDescription || null,
+          created_at: editDate ? new Date(editDate).toISOString() : selectedTask.created_at
+        })
+      })
+      setTasks(tasks.map(t => t.id === updated.id ? updated : t))
+      setSelectedTask(updated)
+      setIsEditingTask(false)
+      showToast('Objective updated successfully! 💎')
+    } catch (error) {
+      console.error('Update failed:', error)
+      showToast('Failed to update objective.', 'error')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -1006,56 +1045,124 @@ function App() {
                   <div className="space-y-4 flex-1">
                     <div className="flex items-center gap-3 text-primary">
                       <ListTodo size={20} />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">Objective Details</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                        {isEditingTask ? 'Editing Objective' : 'Objective Details'}
+                      </span>
                     </div>
-                    <h2 className="text-4xl font-black text-white leading-tight break-words">
-                      {selectedTask.title}
-                    </h2>
+                    
+                    {isEditingTask ? (
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-2xl font-black text-white focus:border-primary outline-none transition-all"
+                        placeholder="Objective title..."
+                      />
+                    ) : (
+                      <h2 className="text-4xl font-black text-white leading-tight break-words">
+                        {selectedTask.title}
+                      </h2>
+                    )}
                   </div>
-                  <button 
-                    onClick={() => setSelectedTask(null)}
-                    className="p-3 hover:bg-white/5 rounded-2xl transition-all text-white/30 hover:text-white border border-transparent hover:border-white/10"
-                  >
-                    <X size={24} />
-                  </button>
+                  
+                  <div className="flex items-center gap-2">
+                    {!isEditingTask && (
+                      <button 
+                        onClick={() => setIsEditingTask(true)}
+                        className="p-3 bg-primary/10 hover:bg-primary/20 rounded-2xl transition-all text-primary border border-primary/20"
+                      >
+                        <TrendingUp size={20} />
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => {
+                        setSelectedTask(null)
+                        setIsEditingTask(false)
+                      }}
+                      className="p-3 hover:bg-white/5 rounded-2xl transition-all text-white/30 hover:text-white border border-transparent hover:border-white/10"
+                    >
+                      <X size={24} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-6">
                   <div className="p-6 bg-white/[0.02] rounded-3xl border border-white/5 space-y-4">
                     <h4 className="text-[10px] font-black text-white/20 uppercase tracking-widest">Description</h4>
-                    <p className="text-xl text-muted-foreground leading-relaxed break-words whitespace-pre-wrap">
-                      {selectedTask.description || "No specific details provided for this objective. 💎"}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    <div className="px-5 py-3 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3">
-                      <Calendar size={16} className="text-primary" />
-                      <span className="text-xs font-bold text-white/60">
-                        {formatTaskDate(selectedTask.created_at).full}
-                      </span>
-                    </div>
-                    <div className="px-5 py-3 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3">
-                      <Clock size={16} className="text-blue-400" />
-                      <span className="text-xs font-bold text-white/60">
-                        {formatTaskDate(selectedTask.created_at).time}
-                      </span>
-                    </div>
-                    {selectedTask.is_completed && (
-                      <div className="px-5 py-3 bg-green-500/10 rounded-2xl border border-green-500/20 flex items-center gap-3 text-green-500">
-                        <CheckCircle2 size={16} />
-                        <span className="text-xs font-bold uppercase tracking-widest">Mission Completed</span>
-                      </div>
+                    {isEditingTask ? (
+                      <textarea
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-lg text-muted-foreground min-h-[150px] focus:border-primary outline-none transition-all resize-none"
+                        placeholder="Break down the details..."
+                      />
+                    ) : (
+                      <p className="text-xl text-muted-foreground leading-relaxed break-words whitespace-pre-wrap">
+                        {selectedTask.description || "No specific details provided for this objective. 💎"}
+                      </p>
                     )}
                   </div>
+
+                  {isEditingTask ? (
+                    <div className="flex flex-col gap-3">
+                      <label className="text-[10px] font-black text-white/20 uppercase tracking-widest px-4">Reschedule Objective</label>
+                      <input
+                        type="date"
+                        value={editDate}
+                        onChange={(e) => setEditDate(e.target.value)}
+                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-white focus:border-primary outline-none transition-all scheme-dark"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-3">
+                      <div className="px-5 py-3 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3">
+                        <Calendar size={16} className="text-primary" />
+                        <span className="text-xs font-bold text-white/60">
+                          {formatTaskDate(selectedTask.created_at).full}
+                        </span>
+                      </div>
+                      <div className="px-5 py-3 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3">
+                        <Clock size={16} className="text-blue-400" />
+                        <span className="text-xs font-bold text-white/60">
+                          {formatTaskDate(selectedTask.created_at).time}
+                        </span>
+                      </div>
+                      {selectedTask.is_completed && (
+                        <div className="px-5 py-3 bg-green-500/10 rounded-2xl border border-green-500/20 flex items-center gap-3 text-green-500">
+                          <CheckCircle2 size={16} />
+                          <span className="text-xs font-bold uppercase tracking-widest">Mission Completed</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <button
-                  onClick={() => setSelectedTask(null)}
-                  className="w-full h-16 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-black tracking-widest text-xs uppercase transition-all active:scale-[0.98]"
-                >
-                  Return to Dashboard
-                </button>
+                <div className="flex gap-4">
+                  {isEditingTask ? (
+                    <>
+                      <button
+                        onClick={() => setIsEditingTask(false)}
+                        className="flex-1 h-16 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-black tracking-widest text-xs uppercase transition-all"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleUpdateTaskDetail}
+                        disabled={loading || !editTitle.trim()}
+                        className="flex-3 h-16 bg-gradient-to-r from-primary to-blue-600 rounded-2xl text-white font-black tracking-widest text-xs uppercase shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
+                      >
+                        {loading ? <Clock size={20} className="animate-spin mx-auto" /> : 'Save Mission Updates'}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setSelectedTask(null)}
+                      className="w-full h-16 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-black tracking-widest text-xs uppercase transition-all active:scale-[0.98]"
+                    >
+                      Return to Dashboard
+                    </button>
+                  )}
+                </div>
               </div>
             </motion.div>
           </div>
