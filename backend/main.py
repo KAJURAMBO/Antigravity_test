@@ -318,7 +318,9 @@ def read_task(
     current_user: User = Depends(get_current_user),
 ):
     task = session.get(Task, task_id)
-    if not task or task.user_id != current_user.id:
+    if not task or (
+        task.user_id != current_user.id and task.assignee_id != current_user.id
+    ):
         raise HTTPException(status_code=404, detail="Task not found")
     return task
 
@@ -331,7 +333,9 @@ def update_task(
     current_user: User = Depends(get_current_user),
 ):
     task = session.get(Task, task_id)
-    if not task or task.user_id != current_user.id:
+    if not task or (
+        task.user_id != current_user.id and task.assignee_id != current_user.id
+    ):
         raise HTTPException(status_code=404, detail="Task not found")
 
     task_data = task_update.model_dump(exclude_unset=True)
@@ -351,7 +355,9 @@ def delete_task(
     current_user: User = Depends(get_current_user),
 ):
     task = session.get(Task, task_id)
-    if not task or task.user_id != current_user.id:
+    if not task or (
+        task.user_id != current_user.id and task.assignee_id != current_user.id
+    ):
         raise HTTPException(status_code=404, detail="Task not found")
 
     session.delete(task)

@@ -574,34 +574,34 @@ function App() {
       const isDelegatedByMe = t.user_id === user?.id && t.assignee_id && t.assignee_id !== user?.id
 
       if (listStatus === 'delegated') {
-        return isDelegatedByMe
-      }
-      
-      // All other views (Active/Backlog/Done/Future) only show tasks assigned to me
-      if (!isAssignedToMe) return false
+        if (!isDelegatedByMe) return false
+      } else {
+        // All other views (Active/Backlog/Done/Future) only show tasks assigned to me
+        if (!isAssignedToMe) return false
 
-      // 1. High Priority Status Filters (Override Timeframe)
-      if (listStatus === 'future') {
-          const d = new Date(t.created_at)
-          d.setHours(0, 0, 0, 0)
-          return d.getTime() > now.getTime() && !t.is_completed
-      }
+        // 1. High Priority Status Filters (Override Timeframe)
+        if (listStatus === 'future') {
+            const d = new Date(t.created_at)
+            d.setHours(0, 0, 0, 0)
+            return d.getTime() > now.getTime() && !t.is_completed
+        }
 
-      if (listStatus === 'backlog') {
-         const d = new Date(t.created_at)
-         d.setHours(0,0,0,0)
-         if (d.getTime() >= now.getTime()) return false
-         return !t.is_completed
-      }
+        if (listStatus === 'backlog') {
+           const d = new Date(t.created_at)
+           d.setHours(0,0,0,0)
+           if (d.getTime() >= now.getTime()) return false
+           return !t.is_completed
+        }
 
-      // 2. Main Logic for Active/Done Tasks
-      if (listStatus === 'active') {
-          if (t.is_completed) return false
-          const d = new Date(t.created_at)
-          d.setHours(0,0,0,0)
-          if (d.getTime() < now.getTime()) return false 
-      } 
-      if (listStatus === 'done' && !t.is_completed) return false
+        // 2. Main Logic for Active/Done Tasks
+        if (listStatus === 'active') {
+            if (t.is_completed) return false
+            const d = new Date(t.created_at)
+            d.setHours(0,0,0,0)
+            if (d.getTime() < now.getTime()) return false 
+        } 
+        if (listStatus === 'done' && !t.is_completed) return false
+      }
 
       // 3. Timeframe Logic
       const taskDate = new Date(t.created_at)
