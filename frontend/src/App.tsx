@@ -26,13 +26,12 @@ interface UserProfile {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDate, API_URL }: { 
+const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDate }: { 
   task: Task, 
   toggleTask: (t: Task) => void, 
   deleteTask: (id: number) => void, 
   setSelectedTask: (t: Task) => void, 
-  formatTaskDate: (d: string) => any,
-  API_URL: string 
+  formatTaskDate: (d: string) => any
 }) => (
   <motion.div
     layout
@@ -796,7 +795,7 @@ function App() {
               <AnimatePresence mode="popLayout">
                 {categorizedTasks.today.length > 0 ? (
                   categorizedTasks.today.map((task) => (
-                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} API_URL={API_URL} />
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} />
                   ))
                 ) : (
                   <div className="text-center py-12 glass rounded-[32px] border border-white/5 opacity-50">
@@ -817,7 +816,7 @@ function App() {
                 
                 <AnimatePresence mode="popLayout">
                   {categorizedTasks.backlog.map((task) => (
-                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} API_URL={API_URL} />
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} />
                   ))}
                 </AnimatePresence>
               </div>
