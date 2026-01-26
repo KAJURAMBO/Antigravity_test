@@ -565,6 +565,12 @@ function App() {
       d.setHours(0, 0, 0, 0)
       const diffTime = now.getTime() - d.getTime()
       const diffDays = diffTime / (1000 * 60 * 60 * 24)
+      
+      // If delegated, allow future lookahead as well
+      if (listStatus === 'delegated') {
+        return Math.abs(diffDays) < days
+      }
+      
       return diffDays >= 0 && diffDays < days
     }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { User as UserIcon, Mail } from 'lucide-react'
+import { User as UserIcon, Mail, Trash2 } from 'lucide-react'
 
 // Basic types (duplicated from App.tsx for now to avoid circular deps if not separated)
 interface UserProfile {
@@ -54,6 +54,19 @@ export function TeamView({ apiFetch, currentUser, showToast }: TeamViewProps) {
     }
   }
 
+  const handleRemove = async (userId: number, name: string) => {
+    if (!window.confirm(`Are you sure you want to remove ${name} from your squad?`)) return
+
+    try {
+      await apiFetch(`/teams/members/${userId}`, { method: 'DELETE' })
+      showToast(`${name} removed from squad.`)
+      fetchMembers()
+    } catch (e) {
+      console.error(e)
+      showToast('Failed to remove member.', 'error')
+    }
+  }
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
@@ -87,8 +100,16 @@ export function TeamView({ apiFetch, currentUser, showToast }: TeamViewProps) {
                      <p className="text-white font-bold truncate">{m.full_name || 'Unknown Agent'}</p>
                      <p className="text-white/40 text-xs truncate">{m.email}</p>
                    </div>
-                   {m.id === currentUser.id && (
+                   {m.id === currentUser.id ? (
                      <span className="text-[10px] font-black bg-primary/20 text-primary px-2 py-1 rounded-lg uppercase">YOU</span>
+                   ) : (
+                     <button 
+                       onClick={() => handleRemove(m.id, m.full_name || m.email)}
+                       className="p-2 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                       title="Remove Member"
+                     >
+                       <Trash2 size={16} />
+                     </button>
                    )}
                 </div>
               ))

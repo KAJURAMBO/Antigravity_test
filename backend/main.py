@@ -276,6 +276,41 @@ def read_members(
     return members
 
 
+@app.delete("/teams/members/{user_id}")
+def remove_member(
+    user_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    # Check if inviter has a team where they are owner
+    team_link = session.exec(
+        select(TeamMember).where(
+            TeamMember.user_id == current_user.id, TeamMember.role == "owner"
+        )
+    ).first()
+
+    if not team_link:
+        raise HTTPException(status_code=403, detail="You do not own a team")
+
+    # Person cannot remove themselves (they are owner)
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot remove yourself")
+
+    # Find the member link
+    member_link = session.exec(
+        select(TeamMember).where(
+            TeamMember.team_id == team_link.team_id, TeamMember.user_id == user_id
+        )
+    ).first()
+
+    if not member_link:
+        raise HTTPException(status_code=404, detail="Member not found in your team")
+
+    session.delete(member_link)
+    session.commit()
+    return {"status": "removed"}
+
+
 # CRUD Endpoints (Protected)
 @app.post("/tasks/", response_model=Task, status_code=201)
 def create_task(
