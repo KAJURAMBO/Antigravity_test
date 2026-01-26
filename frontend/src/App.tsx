@@ -393,9 +393,15 @@ function App() {
           // Note: timeframeDays includes past days up to today. 
           // We can check equality with todayKey since we are looping over dataset.
           const isToday = key === todayKey
+          const dDate = new Date(t.created_at)
+          dDate.setHours(0,0,0,0)
+          const now = new Date()
+          now.setHours(0,0,0,0)
+          
           if (isToday) {
              dailyData[`${key}-active`] = (dailyData[`${key}-active`] || 0) + 1
-          } else {
+          } else if (dDate.getTime() < now.getTime()) {
+             // Only count as backlog if it's strictly in the past (exclude future)
              dailyData[`${key}-backlog`] = (dailyData[`${key}-backlog`] || 0) + 1
           }
         }
@@ -425,7 +431,14 @@ function App() {
       return new Date(t.created_at).toLocaleDateString() === today
     }).length
 
-    const backlog = activeTasks.length - activeToday
+    // Backlog must exclude future tasks!
+    const backlog = activeTasks.filter(t => {
+      const d = new Date(t.created_at)
+      d.setHours(0,0,0,0)
+      const now = new Date()
+      now.setHours(0,0,0,0)
+      return d.getTime() < now.getTime()
+    }).length
 
     return [
       { name: 'Done', value: done, color: '#22c55e' },
@@ -439,7 +452,14 @@ function App() {
   
   const todayDateStr = new Date().toLocaleDateString()
   const activeTodayTasks = activeTasksTotal.filter(t => new Date(t.created_at).toLocaleDateString() === todayDateStr)
-  const backlogTasks = activeTasksTotal.filter(t => new Date(t.created_at).toLocaleDateString() !== todayDateStr)
+  // Backlog = Past Only (Exclude Today AND Future)
+  const backlogTasks = activeTasksTotal.filter(t => {
+    const d = new Date(t.created_at)
+    d.setHours(0,0,0,0)
+    const today = new Date()
+    today.setHours(0,0,0,0)
+    return d.getTime() < today.getTime()
+  })
   
   const activeTodayCount = activeTodayTasks.length
   const backlogCount = backlogTasks.length
@@ -497,7 +517,7 @@ function App() {
 
       // 2. Filter by Timeframe (Only applies to Done and Active-Future/Today?)
       // Actually if I click "Backlog", I probably want to see ALL backlog.
-      if (listStatus === 'backlog') return true
+      if ((listStatus as string) === 'backlog') return true
       const taskDate = new Date(t.created_at)
       taskDate.setHours(0, 0, 0, 0)
       
@@ -960,8 +980,7 @@ function App() {
                 >
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full bg-red-500 ${listStatus === 'backlog' ? 'shadow-[0_0_8px_rgba(239,68,68,0.5)]' : ''}`} />
-                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest hidden sm:block">Backlog</span>
-                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest sm:hidden">Old</span>
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Backlog</span>
                   </div>
                   <span className="text-white font-black text-sm">{backlogCount}</span>
                 </button>
