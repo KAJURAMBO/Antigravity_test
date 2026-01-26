@@ -1028,6 +1028,10 @@ function App() {
 
         {/* Right Side: To-Do App */}
         <main className="lg:col-span-7 space-y-8 order-1 lg:order-2">
+          {viewMode === 'team' && user ? (
+             <TeamView apiFetch={apiFetch} currentUser={user} showToast={showToast} />
+          ) : (
+          <>
           <div className="flex flex-col gap-6 pb-6 border-b border-white/10">
             {/* Top Row: Title and Profile */}
             <div className="flex items-center justify-between gap-4">
@@ -1296,14 +1300,29 @@ function App() {
               Add Task <span className="opacity-50">🚀</span>
             </h2>
             <div className="space-y-6">
-              <input
+              <div className="flex gap-4">
+                 <input
+                   type="text"
                 type="text"
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && createTask()}
                 placeholder="What objective will you conquer today? 🔥"
-                className="input-premium h-16"
+                className="input-premium h-16 flex-1"
               />
+               {members.length > 0 && (
+                  <select
+                    value={assigneeId || ''}
+                    onChange={e => setAssigneeId(e.target.value ? Number(e.target.value) : '')}
+                    className="w-32 bg-black/20 border border-white/10 rounded-2xl px-3 text-xs font-bold text-white focus:border-blue-500 outline-none"
+                  >
+                    <option value="">Me</option>
+                    {members.map(m => (
+                      <option key={m.id} value={m.id}>{m.full_name}</option>
+                    ))}
+                  </select>
+               )}
+              </div>
               <textarea
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
@@ -1444,6 +1463,7 @@ function App() {
               </div>
             )}
           </div>
+          </>
           )}
         </main>
       </div>
