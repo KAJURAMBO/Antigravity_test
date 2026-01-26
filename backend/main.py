@@ -305,10 +305,7 @@ def read_tasks(
 
     tasks = session.exec(
         select(Task).where(
-            or_(
-                Task.assignee_id == current_user.id,
-                (Task.user_id == current_user.id) & (Task.assignee_id == None),
-            )
+            or_(Task.assignee_id == current_user.id, Task.user_id == current_user.id)
         )
     ).all()
     return tasks

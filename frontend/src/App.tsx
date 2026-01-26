@@ -15,6 +15,7 @@ interface Task {
   is_completed: boolean
   created_at: string
   updated_at: string | null
+  user_id: number
   assignee_id?: number | null
 }
 
@@ -28,12 +29,14 @@ interface UserProfile {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDate }: { 
+const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDate, members, currentUser }: { 
   task: Task, 
   toggleTask: (t: Task) => void, 
   deleteTask: (id: number) => void, 
   setSelectedTask: (t: Task) => void, 
-  formatTaskDate: (d: string) => any
+  formatTaskDate: (d: string) => any,
+  members: UserProfile[],
+  currentUser: UserProfile
 }) => (
   <motion.div
     layout
@@ -76,10 +79,16 @@ const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDat
             <Clock size={13} className="text-blue-400" />
             {formatTaskDate(task.created_at).time}
           </div>
-          {task.assignee_id && (
+          {task.assignee_id && task.assignee_id !== currentUser.id && (
             <div className="flex items-center gap-2 bg-blue-500/10 px-3 py-1.5 rounded-xl border border-blue-500/20 text-blue-400">
                <UserIcon size={13} />
-               <span>Agent Assigned</span>
+               <span>Assigned to: {members.find(m => m.id === task.assignee_id)?.full_name || 'Agent'}</span>
+            </div>
+          )}
+          {task.assignee_id === currentUser.id && task.user_id !== currentUser.id && (
+            <div className="flex items-center gap-2 bg-purple-500/10 px-3 py-1.5 rounded-xl border border-purple-500/20 text-purple-400">
+               <UserIcon size={13} />
+               <span>Assigned by: {members.find(m => m.id === task.user_id)?.full_name || 'Operator'}</span>
             </div>
           )}
           {task.is_completed && (
@@ -117,7 +126,7 @@ function App() {
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'today' | '7d' | '30d'>('7d')
   const [scheduledDate, setScheduledDate] = useState('')
   const [listTimeframe, setListTimeframe] = useState<'today' | '7d' | '30d'>('today')
-  const [listStatus, setListStatus] = useState<'active' | 'backlog' | 'done' | 'future'>('active')
+  const [listStatus, setListStatus] = useState<'active' | 'backlog' | 'done' | 'future' | 'delegated'>('active')
   const [viewMode, setViewMode] = useState<'board' | 'team' | 'profile'>('board')
 
   // Edit Task States
@@ -389,7 +398,9 @@ function App() {
       const hourlyDone: { [key: number]: number } = {}
       const today = new Date().toLocaleDateString()
       
-      tasks.forEach(t => {
+      const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
+      
+      myTasks.forEach(t => {
         const d = new Date(t.created_at)
         if (d.toLocaleDateString() === today) {
           const hour = d.getHours()
@@ -435,7 +446,9 @@ function App() {
       dailyData[`${day.key}-future`] = 0
     })
 
-    tasks.forEach(t => {
+    const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
+
+    myTasks.forEach(t => {
       const d = new Date(t.created_at)
       const key = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
       if (timeframeDays.some(td => td.key === key)) {
@@ -467,16 +480,19 @@ function App() {
       done: dailyData[`${d.key}-done`] || 0,
       future: dailyData[`${d.key}-future`] || 0
     }))
-  }, [tasks, analyticsTimeframe])
+  }, [tasks, analyticsTimeframe, user])
 
   const completionData = useMemo(() => {
     const today = new Date().toLocaleDateString()
     
+    // 0. Filter tasks for analytics
+    const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
+    
     // 1. Done Tasks
-    const done = tasks.filter(t => t.is_completed).length
+    const done = myTasks.filter(t => t.is_completed).length
 
     // 2. Active Tasks (Split into Today vs Backlog)
-    const activeTasks = tasks.filter(t => !t.is_completed)
+    const activeTasks = myTasks.filter(t => !t.is_completed)
     
     const activeToday = activeTasks.filter(t => {
       return new Date(t.created_at).toLocaleDateString() === today
@@ -505,10 +521,13 @@ function App() {
       { name: 'Backlog', value: backlog, color: '#ef4444' },
       { name: 'Future', value: future, color: '#60a5fa' }
     ]
-  }, [tasks])
+  }, [tasks, user])
 
-  const completedTasks = tasks.filter(t => t.is_completed).length
-  const activeTasksTotal = tasks.filter(t => !t.is_completed)
+  const myTasks = useMemo(() => tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id)), [tasks, user])
+  const delegatedTasks = useMemo(() => tasks.filter(t => t.user_id === user?.id && t.assignee_id && t.assignee_id !== user?.id), [tasks, user])
+
+  const completedTasks = myTasks.filter(t => t.is_completed).length
+  const activeTasksTotal = myTasks.filter(t => !t.is_completed)
   
   const todayDateStr = new Date().toLocaleDateString()
   const activeTodayTasks = activeTasksTotal.filter(t => new Date(t.created_at).toLocaleDateString() === todayDateStr)
@@ -550,15 +569,24 @@ function App() {
     }
 
     const filteredFocus = tasks.filter(t => {
+      // 0. Base Filter: Is this My Task (Assignee) or My Delegated Task?
+      const isAssignedToMe = t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id)
+      const isDelegatedByMe = t.user_id === user?.id && t.assignee_id && t.assignee_id !== user?.id
+
+      if (listStatus === 'delegated') {
+        return isDelegatedByMe
+      }
+      
+      // All other views (Active/Backlog/Done/Future) only show tasks assigned to me
+      if (!isAssignedToMe) return false
+
       // 1. High Priority Status Filters (Override Timeframe)
-      // Future Tasks: Independent of "Today/7d/30d" timeframe settings
       if (listStatus === 'future') {
           const d = new Date(t.created_at)
           d.setHours(0, 0, 0, 0)
           return d.getTime() > now.getTime() && !t.is_completed
       }
 
-      // Backlog Tasks: Independent of Timeframe (Past Incomplete)
       if (listStatus === 'backlog') {
          const d = new Date(t.created_at)
          d.setHours(0,0,0,0)
@@ -567,27 +595,20 @@ function App() {
       }
 
       // 2. Main Logic for Active/Done Tasks
-      
-      // First, check basic status validity
       if (listStatus === 'active') {
           if (t.is_completed) return false
-          // Active usually = Today or Timeframe. 
-          // If strict today separation:
           const d = new Date(t.created_at)
           d.setHours(0,0,0,0)
-          if (d.getTime() < now.getTime()) return false // Loop old active tasks to Backlog view
+          if (d.getTime() < now.getTime()) return false 
       } 
       if (listStatus === 'done' && !t.is_completed) return false
 
-      // 3. Timeframe Logic (Only applies to Active and Done)
+      // 3. Timeframe Logic
       const taskDate = new Date(t.created_at)
       taskDate.setHours(0, 0, 0, 0)
       
       if (listTimeframe === 'today') {
-        // Special Case: If viewing "Done", act as "Done History".
-        // Allow Future Completed tasks to appear in Today's Done list so they don't vanish.
         if (listStatus === 'done' && taskDate.getTime() > now.getTime()) return true
-        
         return taskDate.toLocaleDateString() === todayStr
       } else if (listTimeframe === '7d') {
         return isWithinDays(t.created_at, 7)
@@ -598,22 +619,19 @@ function App() {
       return false
     })
 
+    const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
+
     return {
       focus: filteredFocus,
-      backlog: tasks.filter(t => {
+      backlog: myTasks.filter(t => {
         const d = new Date(t.created_at)
         d.setHours(0, 0, 0, 0)
         return d.getTime() < now.getTime() && !t.is_completed
       }),
-      future: tasks.filter(t => {
+      future: myTasks.filter(t => {
         const d = new Date(t.created_at)
         d.setHours(0, 0, 0, 0)
-        // Strict Future: Date > Today (Midnight)
-        const isFuture = d.getTime() > now.getTime()
-        
-        if (!isFuture) return false
-        
-        return !t.is_completed
+        return d.getTime() > now.getTime() && !t.is_completed
       })
     }
   }, [tasks, listTimeframe, listStatus])
@@ -1364,18 +1382,25 @@ function App() {
               <div className="h-6 w-px bg-white/10 hidden sm:block" />
 
               <div className="flex flex-wrap p-1 bg-black/20 rounded-xl border border-white/5">
-                {(['backlog', 'active', 'done', 'future'] as const).map((st) => (
+                {(['backlog', 'active', 'done', 'future', 'delegated'] as const).map((st) => (
                   <button
                     key={st}
                     onClick={() => setListStatus(st)}
                     className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all flex items-center gap-2 ${
                       listStatus === st 
-                      ? (st === 'backlog' ? 'bg-red-500' : st === 'active' ? 'bg-primary' : st === 'done' ? 'bg-green-600' : 'bg-blue-400') + ' text-white shadow-lg shadow-white/10' 
+                      ? (st === 'backlog' ? 'bg-red-500' : st === 'active' ? 'bg-primary' : st === 'done' ? 'bg-green-600' : st === 'future' ? 'bg-blue-400' : 'bg-orange-500') + ' text-white shadow-lg shadow-white/10' 
                       : 'text-white/30 hover:text-white'
                     }`}
                   >
-                    {st === 'backlog' ? '⚠️' : st === 'active' ? <Clock size={10} /> : st === 'done' ? <CheckCircle2 size={10} /> : <Calendar size={10} />}
+                    {st === 'backlog' ? '⚠️' : st === 'active' ? <Clock size={10} /> : st === 'done' ? <CheckCircle2 size={10} /> : st === 'future' ? <Calendar size={10} /> : <TrendingUp size={10} />}
                     {st === 'backlog' ? 'BACKLOG' : st.toUpperCase()}
+                    <span className="ml-1 opacity-50">
+                      {st === 'delegated' ? delegatedTasks.length : 
+                       st === 'active' ? activeTodayCount :
+                       st === 'backlog' ? backlogCount :
+                       st === 'done' ? completedTasks : 
+                       futureCount}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -1396,7 +1421,7 @@ function App() {
               <AnimatePresence mode="popLayout">
                 {categorizedTasks.focus.length > 0 ? (
                   categorizedTasks.focus.map((task) => (
-                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} />
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} />
                   ))
                 ) : (
                   <div className="text-center py-12 glass rounded-[32px] border border-white/5 opacity-50">
@@ -1417,7 +1442,7 @@ function App() {
                 
                 <AnimatePresence mode="popLayout">
                   {categorizedTasks.backlog.map((task) => (
-                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} />
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} />
                   ))}
                 </AnimatePresence>
               </div>
@@ -1434,7 +1459,7 @@ function App() {
                 
                 <AnimatePresence mode="popLayout">
                   {categorizedTasks.future.map((task) => (
-                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} />
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} />
                   ))}
                 </AnimatePresence>
               </div>
@@ -1625,6 +1650,14 @@ function App() {
                           <UserIcon size={16} />
                           <span className="text-xs font-bold uppercase tracking-widest truncate max-w-[150px]">
                             Assigned to: {members.find(m => m.id === selectedTask.assignee_id)?.full_name || 'Team Agent'}
+                          </span>
+                        </div>
+                      )}
+                      {selectedTask.assignee_id === user?.id && selectedTask.user_id !== user?.id && (
+                        <div className="px-5 py-3 bg-purple-500/10 rounded-2xl border border-purple-500/20 flex items-center gap-3 text-purple-400">
+                          <UserIcon size={16} />
+                          <span className="text-xs font-bold uppercase tracking-widest truncate max-w-[150px]">
+                            Assigned by: {members.find(m => m.id === selectedTask.user_id)?.full_name || 'Operator'}
                           </span>
                         </div>
                       )}
