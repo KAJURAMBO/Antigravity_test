@@ -878,9 +878,10 @@ function App() {
                 <AnimatePresence>
                   {openStatsDropdown === 'active' && (
                     <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      initial={{ opacity: 0, y: 5, scale: 0.98 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      exit={{ opacity: 0, y: 5, scale: 0.98 }}
+                      transition={{ duration: 0.1 }}
                       className="absolute top-full left-0 right-0 mt-2 z-50 glass-card border border-white/10 p-2 overflow-hidden shadow-2xl"
                     >
                       <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-1">
@@ -926,9 +927,10 @@ function App() {
                 <AnimatePresence>
                   {openStatsDropdown === 'done' && (
                     <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      initial={{ opacity: 0, y: 5, scale: 0.98 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      exit={{ opacity: 0, y: 5, scale: 0.98 }}
+                      transition={{ duration: 0.1 }}
                       className="absolute top-full left-0 right-0 mt-2 z-50 glass-card border border-white/10 p-2 overflow-hidden shadow-2xl"
                     >
                       <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-1">
@@ -1156,9 +1158,10 @@ function App() {
             />
             
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              initial={{ opacity: 0, scale: 0.98, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              exit={{ opacity: 0, scale: 0.98, y: 10 }}
+              transition={{ duration: 0.15 }}
               onClick={(e) => e.stopPropagation()}
               className="relative w-full max-w-2xl glass-card border border-white/10 p-1 overflow-hidden"
             >
