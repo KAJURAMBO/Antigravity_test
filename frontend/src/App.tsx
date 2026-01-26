@@ -1280,7 +1280,7 @@ function App() {
           <div className="space-y-12">
             {/* Advanced Filter Bar relocated - Logic and Contextual view */}
             <div className="flex flex-wrap items-center gap-4 bg-white/[0.02] p-2 rounded-[22px] border border-white/5 mx-4">
-              <div className="flex p-1 bg-black/20 rounded-xl border border-white/5">
+              <div className="flex flex-wrap p-1 bg-black/20 rounded-xl border border-white/5">
               {(['today', '7d', '30d'] as const).map((tf) => (
                 <button
                   key={tf}
@@ -1298,7 +1298,7 @@ function App() {
               
               <div className="h-6 w-px bg-white/10 hidden sm:block" />
 
-              <div className="flex p-1 bg-black/20 rounded-xl border border-white/5">
+              <div className="flex flex-wrap p-1 bg-black/20 rounded-xl border border-white/5">
                 {(['backlog', 'active', 'done', 'future'] as const).map((st) => (
                   <button
                     key={st}
