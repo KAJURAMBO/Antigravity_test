@@ -7,6 +7,8 @@ interface UserProfile {
   email: string
   full_name: string | null
   picture: string | null
+  role?: string
+  can_remove?: boolean
 }
 
 interface TeamViewProps {
@@ -96,21 +98,30 @@ export function TeamView({ apiFetch, currentUser, showToast }: TeamViewProps) {
                         </div>
                       )}
                    </div>
-                   <div className="flex-1 min-w-0">
-                     <p className="text-white font-bold truncate">{m.full_name || 'Unknown Agent'}</p>
-                     <p className="text-white/40 text-xs truncate">{m.email}</p>
-                   </div>
-                   {m.id === currentUser.id ? (
-                     <span className="text-[10px] font-black bg-primary/20 text-primary px-2 py-1 rounded-lg uppercase">YOU</span>
-                   ) : (
-                     <button 
-                       onClick={() => handleRemove(m.id, m.full_name || m.email)}
-                       className="p-2 text-white/20 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                       title="Remove Member"
-                     >
-                       <Trash2 size={16} />
-                     </button>
-                   )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-white font-bold truncate">{m.full_name || 'Unknown Agent'}</p>
+                        {m.role === 'owner' ? (
+                          <span className="text-[8px] font-black bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded-md uppercase tracking-tighter">OWNER</span>
+                        ) : (
+                          <span className="text-[8px] font-black bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-md uppercase tracking-tighter">TEAMMATE</span>
+                        )}
+                      </div>
+                      <p className="text-white/40 text-[10px] truncate">{m.email}</p>
+                    </div>
+                    {m.id === currentUser.id ? (
+                      <span className="text-[10px] font-black bg-primary/20 text-primary px-2 py-1 rounded-lg uppercase">YOU</span>
+                    ) : (
+                      m.can_remove && (
+                        <button 
+                          onClick={() => handleRemove(m.id, m.full_name || m.email)}
+                          className="p-2 text-white/10 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                          title="Remove Member"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )
+                    )}
                 </div>
               ))
             ) : (

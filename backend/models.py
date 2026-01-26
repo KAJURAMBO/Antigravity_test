@@ -115,6 +115,15 @@ class UserRead(UserBase):
     id: int
 
 
+class MemberRead(SQLModel):
+    id: int
+    email: str
+    full_name: Optional[str] = None
+    picture: Optional[str] = None
+    role: str  # owner, member
+    can_remove: bool
+
+
 class TeamBase(SQLModel):
     name: str
 

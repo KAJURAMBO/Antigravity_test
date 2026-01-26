@@ -258,12 +258,19 @@ def invite_member(
     return {"status": "invited", "user": invitee.full_name}
 
 
-@app.get("/teams/members", response_model=List[UserRead])
+@app.get("/teams/members", response_model=List[MemberRead])
 def read_members(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    # Get all colleagues from all my teams
+    # 1. Identify team owned by current_user (for 'can_remove' logic)
+    owned_team = session.exec(
+        select(TeamMember.team_id).where(
+            TeamMember.user_id == current_user.id, TeamMember.role == "owner"
+        )
+    ).first()
+
+    # 2. Get all teams I am part of
     my_teams = session.exec(
         select(TeamMember.team_id).where(TeamMember.user_id == current_user.id)
     ).all()
@@ -271,9 +278,46 @@ def read_members(
     if not my_teams:
         return []
 
-    subquery = select(TeamMember.user_id).where(TeamMember.team_id.in_(my_teams))
-    members = session.exec(select(User).where(User.id.in_(subquery))).all()
-    return members
+    # 3. Get all relations where team_id is in any of my teams
+    # This ensures we get the role per-team
+    relations = session.exec(
+        select(TeamMember, User)
+        .join(User, TeamMember.user_id == User.id)
+        .where(TeamMember.team_id.in_(my_teams))
+    ).all()
+
+    # 4. Consolidate into unique users with specific roles
+    # Priority: If they are in MY team, role is 'member' (since I am owner)
+    # If I am in THEIR team, their role in that team is 'owner'
+    member_map = {}
+    for rel, user in relations:
+        if user.id not in member_map:
+            # Default values
+            role = "member"
+            can_remove = False
+
+            # If this is ME, and I own a team, I am the OWNER of my squad view
+            if user.id == current_user.id and owned_team:
+                role = "owner"
+
+            # If this user is in the team I OWN, I can remove them
+            if owned_team and rel.team_id == owned_team and user.id != current_user.id:
+                can_remove = True
+
+            # If I am in a team WHERE THEY ARE OWNER, they should show as OWNER
+            if rel.role == "owner" and rel.user_id != current_user.id:
+                role = "owner"
+
+            member_map[user.id] = MemberRead(
+                id=user.id,
+                email=user.email,
+                full_name=user.full_name,
+                picture=user.picture,
+                role=role,
+                can_remove=can_remove,
+            )
+
+    return list(member_map.values())
 
 
 @app.delete("/teams/members/{user_id}")
