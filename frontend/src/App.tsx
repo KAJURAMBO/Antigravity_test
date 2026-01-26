@@ -1335,7 +1335,7 @@ function App() {
             <div className="space-y-6">
               <div className="flex items-center justify-between px-4">
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-[0.3em] flex items-center gap-3">
-                  {listTimeframe === 'today' ? "Today's" : listTimeframe.toUpperCase()} Focus 
+                  {listStatus === 'future' ? 'Future' : listStatus === 'backlog' ? 'Backlog' : listTimeframe === 'today' ? "Today's" : listTimeframe.toUpperCase()} Focus 
                   <span className={`w-2 h-2 rounded-full ${listStatus === 'backlog' ? 'bg-red-500' : listStatus === 'active' ? 'bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]' : listStatus === 'done' ? 'bg-green-500' : 'bg-blue-400'}`} />
                 </h2>
                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${listStatus === 'backlog' ? 'bg-red-500/10 text-red-500' : listStatus === 'active' ? 'bg-primary/10 text-primary' : listStatus === 'done' ? 'bg-green-500/10 text-green-500' : 'bg-blue-400/10 text-blue-400'}`}>
@@ -1356,8 +1356,8 @@ function App() {
               </AnimatePresence>
             </div>
 
-            {/* Backlog Section */}
-            {categorizedTasks.backlog.length > 0 && (
+            {/* Backlog Section - Hide if already viewing backlog */}
+            {categorizedTasks.backlog.length > 0 && listStatus !== 'backlog' && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between px-4">
                   <h2 className="text-sm font-bold text-red-500/50 uppercase tracking-[0.3em] flex items-center gap-3">
@@ -1373,8 +1373,8 @@ function App() {
               </div>
             )}
 
-            {/* Future Objectives - Hide if viewing backlog */}
-            {categorizedTasks.future.length > 0 && listStatus !== 'backlog' && (
+            {/* Future Objectives - Hide if viewing backlog or future */}
+            {categorizedTasks.future.length > 0 && listStatus !== 'backlog' && listStatus !== 'future' && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between px-4">
                   <h2 className="text-sm font-bold text-blue-400 uppercase tracking-[0.3em] flex items-center gap-3">
