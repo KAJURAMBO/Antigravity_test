@@ -1,6 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, List
 from datetime import datetime, timezone
+from pydantic import field_serializer
 
 
 class UserBase(SQLModel):
@@ -17,6 +18,12 @@ class User(UserBase, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     tasks: List["Task"] = Relationship(back_populates="user")
 
+    @field_serializer("created_at")
+    def serialize_dt(self, dt: datetime, _info):
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
 
 class TaskBase(SQLModel):
     title: str
@@ -30,6 +37,15 @@ class Task(TaskBase, table=True):
     updated_at: Optional[datetime] = Field(default=None)
     user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     user: Optional[User] = Relationship(back_populates="tasks")
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_dt(self, dt: Optional[datetime], _info):
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            # If the DB stored a naive datetime, assume it was UTC (which is how we store it)
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 class TaskCreate(TaskBase):

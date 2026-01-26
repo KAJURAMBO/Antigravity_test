@@ -99,8 +99,7 @@ function App() {
   }, [token, apiFetch])
 
   const formatTaskDate = (dateString: string) => {
-    // Ensure the date is treated as UTC if no timezone is provided
-    const date = new Date(dateString.endsWith('Z') || dateString.includes('+') ? dateString : `${dateString}Z`)
+    const date = new Date(dateString)
     return {
       full: date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }),
       time: date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
