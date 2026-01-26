@@ -104,6 +104,7 @@ function App() {
   const [devUsername, setDevUsername] = useState('')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | '30d'>('7d')
+  const [scheduledDate, setScheduledDate] = useState('')
 
   // Cursor Tracking
   const mouseX = useMotionValue(0)
@@ -250,12 +251,14 @@ function App() {
         body: JSON.stringify({
           title: newTask,
           description: newDescription || null,
-          is_completed: false
+          is_completed: false,
+          created_at: scheduledDate ? new Date(scheduledDate).toISOString() : null
         })
       })
       setTasks([data, ...tasks])
       setNewTask('')
       setNewDescription('')
+      setScheduledDate('')
     } catch (error) {
       console.error('Error creating task:', error)
     } finally {
@@ -327,11 +330,22 @@ function App() {
   
   // Task Grouping Logic
   const categorizedTasks = useMemo(() => {
-    const today = new Date().toLocaleDateString()
+    const todayStr = new Date().toLocaleDateString()
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
     
     return {
-      today: tasks.filter(t => new Date(t.created_at).toLocaleDateString() === today),
-      backlog: tasks.filter(t => new Date(t.created_at).toLocaleDateString() !== today && !t.is_completed)
+      today: tasks.filter(t => new Date(t.created_at).toLocaleDateString() === todayStr),
+      backlog: tasks.filter(t => {
+        const d = new Date(t.created_at)
+        d.setHours(0, 0, 0, 0)
+        return d < now && !t.is_completed
+      }),
+      future: tasks.filter(t => {
+        const d = new Date(t.created_at)
+        d.setHours(0, 0, 0, 0)
+        return d > now
+      })
     }
   }, [tasks])
   const [editingName, setEditingName] = useState('')
@@ -772,6 +786,17 @@ function App() {
                 placeholder="Break it down into details... 📝"
                 className="input-premium py-5 min-h-[140px] resize-none"
               />
+              
+              <div className="flex flex-col gap-3">
+                <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-4">Schedule Objective (Optional)</label>
+                <input
+                  type="date"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  className="input-premium h-14 text-sm px-6 text-primary scheme-dark"
+                />
+                <p className="text-[9px] text-white/20 italic px-4">Leave empty to focus on this objective today.</p>
+              </div>
               <button
                 onClick={createTask}
                 disabled={loading || !newTask.trim()}
@@ -816,6 +841,23 @@ function App() {
                 
                 <AnimatePresence mode="popLayout">
                   {categorizedTasks.backlog.map((task) => (
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* Future Objectives */}
+            {categorizedTasks.future.length > 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between px-4">
+                  <h2 className="text-sm font-bold text-blue-400 uppercase tracking-[0.3em] flex items-center gap-3">
+                    Future Objectives <span className="w-2 h-2 rounded-full bg-blue-400" />
+                  </h2>
+                </div>
+                
+                <AnimatePresence mode="popLayout">
+                  {categorizedTasks.future.map((task) => (
                     <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} />
                   ))}
                 </AnimatePresence>

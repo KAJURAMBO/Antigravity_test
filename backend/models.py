@@ -49,7 +49,7 @@ class Task(TaskBase, table=True):
 
 
 class TaskCreate(TaskBase):
-    pass
+    created_at: Optional[datetime] = None
 
 
 class TaskUpdate(SQLModel):
