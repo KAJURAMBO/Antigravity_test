@@ -40,13 +40,11 @@ def smart_initialize_db():
             print("Database schema verified. (Smart Initialization)")
 
     except ProgrammingError as e:
-        error_msg = str(e).lower()
-        if (
-            "column user.bio does not exist" in error_msg
-            or "column task.assignee_id does not exist" in error_msg
-            or "undefinedcolumn" in error_msg
+        err = str(e).lower()
+        if ("undefinedcolumn" in err or "does not exist" in err) and (
+            "bio" in err or "assignee_id" in err or "team" in err
         ):
-            print("Missing columns detected. Resetting database schema...")
+            print(f"Schema mismatch detected: {e}. Resetting database...")
             reset_db_and_tables()
         else:
             # Re-raise if it's a different programming error
