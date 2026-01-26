@@ -101,6 +101,7 @@ function App() {
   const [newDescription, setNewDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
+  const [longLoading, setLongLoading] = useState(false)
   const [devUsername, setDevUsername] = useState('')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'today' | '7d' | '30d'>('7d')
@@ -200,6 +201,15 @@ function App() {
   useEffect(() => {
     fetchUserProfile()
   }, [fetchUserProfile])
+
+  useEffect(() => {
+    if (authLoading) {
+      const timer = setTimeout(() => setLongLoading(true), 3000)
+      return () => clearTimeout(timer)
+    } else {
+      setLongLoading(false)
+    }
+  }, [authLoading])
 
   useEffect(() => {
     if (selectedTask) {
@@ -642,7 +652,16 @@ function App() {
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
           <Clock size={48} className="text-primary animate-spin" />
-          <p className="text-white font-bold tracking-widest animate-pulse">AUTHENTICATING...</p>
+          <div className="text-center space-y-2">
+            <p className="text-white font-bold tracking-widest animate-pulse">
+              {longLoading ? 'WAKING UP SERVER...' : 'AUTHENTICATING...'}
+            </p>
+            {longLoading && (
+              <p className="text-[10px] text-white/40 max-w-[200px] leading-relaxed">
+                First login takes time on free servers. Thanks for waiting! ☕
+              </p>
+            )}
+          </div>
         </div>
       </div>
     )
