@@ -97,8 +97,10 @@ function App() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
   const [tasks, setTasks] = useState<Task[]>([])
+  const [members, setMembers] = useState<UserProfile[]>([])
   const [newTask, setNewTask] = useState('')
   const [newDescription, setNewDescription] = useState('')
+  const [assigneeId, setAssigneeId] = useState<number | string>('') // string for select value
   const [loading, setLoading] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
   const [longLoading, setLongLoading] = useState(false)
@@ -108,6 +110,7 @@ function App() {
   const [scheduledDate, setScheduledDate] = useState('')
   const [listTimeframe, setListTimeframe] = useState<'today' | '7d' | '30d'>('today')
   const [listStatus, setListStatus] = useState<'active' | 'backlog' | 'done' | 'future'>('active')
+  const [viewMode, setViewMode] = useState<'board' | 'team'>('board')
 
   // Edit Task States
   const [isEditingTask, setIsEditingTask] = useState(false)
