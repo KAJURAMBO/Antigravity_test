@@ -5,8 +5,8 @@ import { Plus, User as UserIcon, Mail } from 'lucide-react'
 interface UserProfile {
   id: number
   email: string
-  full_name: string
-  picture?: string
+  full_name: string | null
+  picture: string | null
 }
 
 interface TeamViewProps {
