@@ -15,6 +15,7 @@ interface Task {
   is_completed: boolean
   created_at: string
   updated_at: string | null
+  assignee_id?: number | null
 }
 
 interface UserProfile {
@@ -75,6 +76,12 @@ const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDat
             <Clock size={13} className="text-blue-400" />
             {formatTaskDate(task.created_at).time}
           </div>
+          {task.assignee_id && (
+            <div className="flex items-center gap-2 bg-blue-500/10 px-3 py-1.5 rounded-xl border border-blue-500/20 text-blue-400">
+               <UserIcon size={13} />
+               <span>Agent Assigned</span>
+            </div>
+          )}
           {task.is_completed && (
              <div className="flex items-center gap-2 bg-green-500/10 px-3 py-1.5 rounded-xl border border-green-500/20 text-green-500">
               <CheckCircle2 size={13} />
@@ -118,6 +125,7 @@ function App() {
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editDate, setEditDate] = useState('')
+  const [editAssigneeId, setEditAssigneeId] = useState<number | string>('')
   const [openStatsDropdown, setOpenStatsDropdown] = useState<'active' | 'backlog' | 'done' | 'future' | null>(null)
 
   // Dropdown Refs
@@ -233,6 +241,7 @@ function App() {
       setEditTitle(selectedTask.title)
       setEditDescription(selectedTask.description || '')
       setEditDate(new Date(selectedTask.created_at).toISOString().split('T')[0])
+      setEditAssigneeId(selectedTask.assignee_id || '')
       setIsEditingTask(false)
     }
   }, [selectedTask])
@@ -357,7 +366,8 @@ function App() {
         body: JSON.stringify({
           title: editTitle,
           description: editDescription || null,
-          created_at: editDate ? new Date(editDate).toISOString() : selectedTask.created_at
+          created_at: editDate ? new Date(editDate).toISOString() : selectedTask.created_at,
+          assignee_id: editAssigneeId || null
         })
       })
       setTasks(tasks.map(t => t.id === updated.id ? updated : t))
@@ -1616,6 +1626,7 @@ function App() {
                   </div>
 
                   {isEditingTask ? (
+                    <>
                     <div className="flex flex-col gap-2 sm:gap-3">
                       <label className="text-[9px] sm:text-[10px] font-black text-white/20 uppercase tracking-widest px-4">Reschedule Objective</label>
                       <input
@@ -1625,6 +1636,22 @@ function App() {
                         className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-3 sm:p-4 text-sm sm:text-base text-white focus:border-primary outline-none transition-all scheme-dark"
                       />
                     </div>
+                    {members.length > 0 && (
+                      <div className="flex flex-col gap-2 sm:gap-3">
+                        <label className="text-[9px] sm:text-[10px] font-black text-white/20 uppercase tracking-widest px-4">Assign To</label>
+                        <select
+                          value={editAssigneeId || ''}
+                          onChange={e => setEditAssigneeId(e.target.value ? Number(e.target.value) : '')}
+                          className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-3 sm:p-4 text-sm sm:text-base text-white focus:border-primary outline-none transition-all"
+                        >
+                          <option value="">Me</option>
+                          {members.filter(m => m.id !== user?.id).map(m => (
+                            <option key={m.id} value={m.id}>{m.full_name || m.email}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    </>
                   ) : (
                     <div className="flex flex-wrap gap-3">
                       <div className="px-5 py-3 bg-white/5 rounded-2xl border border-white/5 flex items-center gap-3">
@@ -1643,6 +1670,14 @@ function App() {
                         <div className="px-5 py-3 bg-green-500/10 rounded-2xl border border-green-500/20 flex items-center gap-3 text-green-500">
                           <CheckCircle2 size={16} />
                           <span className="text-xs font-bold uppercase tracking-widest">Mission Completed</span>
+                        </div>
+                      )}
+                      {selectedTask.assignee_id && selectedTask.assignee_id !== user?.id && (
+                        <div className="px-5 py-3 bg-blue-500/10 rounded-2xl border border-blue-500/20 flex items-center gap-3 text-blue-400">
+                          <UserIcon size={16} />
+                          <span className="text-xs font-bold uppercase tracking-widest truncate max-w-[150px]">
+                            Assigned to: {members.find(m => m.id === selectedTask.assignee_id)?.full_name || 'Team Agent'}
+                          </span>
                         </div>
                       )}
                     </div>
