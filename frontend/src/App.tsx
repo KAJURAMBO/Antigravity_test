@@ -26,6 +26,74 @@ interface UserProfile {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
+const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDate, API_URL }: { 
+  task: Task, 
+  toggleTask: (t: Task) => void, 
+  deleteTask: (id: number) => void, 
+  setSelectedTask: (t: Task) => void, 
+  formatTaskDate: (d: string) => any,
+  API_URL: string 
+}) => (
+  <motion.div
+    layout
+    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+    animate={{ opacity: 1, scale: 1, y: 0 }}
+    exit={{ opacity: 0, scale: 0.95, x: 20 }}
+    className={`glass-card p-1 relative border border-white/10 group ${task.is_completed ? 'opacity-40 grayscale-[0.8]' : ''}`}
+  >
+    <div className={`p-6 rounded-[22px] flex items-start gap-6 bg-gradient-to-br ${task.is_completed ? 'from-white/[0.02] to-transparent' : 'from-white/[0.05] to-transparent'}`}>
+      <button
+        onClick={() => toggleTask(task)}
+        className={`flex-shrink-0 w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all transform active:scale-90 ${
+          task.is_completed
+            ? 'bg-gradient-to-br from-primary to-blue-600 border-transparent shadow-xl shadow-primary/30'
+            : 'border-white/10 hover:border-primary/50 bg-white/5'
+        }`}
+      >
+        {task.is_completed && <Check size={24} className="text-white font-black" />}
+      </button>
+
+      <div 
+        className="flex-1 min-w-0 cursor-pointer group/title"
+        onClick={() => setSelectedTask(task)}
+      >
+        <h3 className={`text-2xl font-black truncate mb-2 transition-colors ${task.is_completed ? 'line-through text-muted-foreground' : 'text-white group-hover/title:text-primary'}`}>
+          {task.title}
+        </h3>
+        {task.description && (
+          <p className={`text-lg leading-relaxed mb-4 line-clamp-2 ${task.is_completed ? 'text-muted-foreground/40' : 'text-muted-foreground'}`}>
+            {task.description}
+          </p>
+        )}
+        
+        <div className="flex flex-wrap items-center gap-4 text-[11px] font-black text-muted-foreground/40 uppercase tracking-[0.1em]">
+          <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
+            <Calendar size={13} className="text-primary" />
+            {formatTaskDate(task.created_at).full}
+          </div>
+          <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
+            <Clock size={13} className="text-blue-400" />
+            {formatTaskDate(task.created_at).time}
+          </div>
+          {task.is_completed && (
+             <div className="flex items-center gap-2 bg-green-500/10 px-3 py-1.5 rounded-xl border border-green-500/20 text-green-500">
+              <CheckCircle2 size={13} />
+              COMPLETED
+            </div>
+          )}
+        </div>
+      </div>
+
+      <button
+        onClick={() => deleteTask(task.id)}
+        className="p-4 text-muted-foreground/30 hover:text-red-500 hover:bg-red-500/10 rounded-2xl transition-all transform hover:scale-110"
+      >
+        <Trash2 size={24} />
+      </button>
+    </div>
+  </motion.div>
+)
+
 function App() {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
@@ -36,6 +104,7 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true)
   const [devUsername, setDevUsername] = useState('')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | '30d'>('7d')
 
   // Cursor Tracking
   const mouseX = useMotionValue(0)
@@ -218,22 +287,29 @@ function App() {
 
   // Data Analytics Processing
   const chartData = useMemo(() => {
+    const days = analyticsTimeframe === '7d' ? 7 : 30
     const dailyData: { [key: string]: number } = {}
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
+    
+    const timeframeDays = Array.from({ length: days }, (_, i) => {
       const d = new Date()
       d.setDate(d.getDate() - i)
-      return d.toLocaleDateString(undefined, { weekday: 'short' })
+      return {
+        key: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        display: analyticsTimeframe === '30d' 
+          ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+          : d.toLocaleDateString(undefined, { weekday: 'short' })
+      }
     }).reverse()
 
-    last7Days.forEach(day => dailyData[day] = 0)
+    timeframeDays.forEach(day => dailyData[day.key] = 0)
 
     tasks.forEach(task => {
-      const day = new Date(task.created_at).toLocaleDateString(undefined, { weekday: 'short' })
-      if (dailyData[day] !== undefined) dailyData[day]++
+      const taskDate = new Date(task.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      if (dailyData[taskDate] !== undefined) dailyData[taskDate]++
     })
 
-    return last7Days.map(day => ({ name: day, tasks: dailyData[day] }))
-  }, [tasks])
+    return timeframeDays.map(day => ({ name: day.display, tasks: dailyData[day.key] }))
+  }, [tasks, analyticsTimeframe])
 
   const completionData = useMemo(() => {
     const completed = tasks.filter(t => t.is_completed).length
@@ -249,6 +325,16 @@ function App() {
 
   const [showProfile, setShowProfile] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
+  
+  // Task Grouping Logic
+  const categorizedTasks = useMemo(() => {
+    const today = new Date().toLocaleDateString()
+    
+    return {
+      today: tasks.filter(t => new Date(t.created_at).toLocaleDateString() === today),
+      backlog: tasks.filter(t => new Date(t.created_at).toLocaleDateString() !== today && !t.is_completed)
+    }
+  }, [tasks])
   const [editingName, setEditingName] = useState('')
   const [editingBio, setEditingBio] = useState('')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -528,15 +614,32 @@ function App() {
                 <Layout size={38} className="text-primary" />
               </div>
               <div>
-                <h1 className="text-5xl font-extrabold tracking-tight text-white leading-tight">Analytics</h1>
-                <p className="text-muted-foreground text-xl">Efficiency & Performance ✨</p>
-              </div>
+                  <h1 className="text-5xl font-extrabold tracking-tight text-white leading-tight">Analytics</h1>
+                  <div className="flex items-center gap-4 mt-2">
+                    <p className="text-muted-foreground text-xl">Efficiency & Performance ✨</p>
+                    <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
+                      {(['7d', '30d'] as const).map((tf) => (
+                        <button
+                          key={tf}
+                          onClick={() => setAnalyticsTimeframe(tf)}
+                          className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
+                            analyticsTimeframe === tf 
+                            ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                            : 'text-white/30 hover:text-white'
+                          }`}
+                        >
+                          {tf}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
             </div>
           </header>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="glass p-6 rounded-3xl border border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
-              <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest mb-1">Weekly Flow</p>
+              <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest mb-1">{analyticsTimeframe === '7d' ? 'Weekly' : 'Monthly'} Flow</p>
               <h3 className="text-3xl font-black text-white">{tasks.length} <span className="text-sm font-medium text-muted-foreground">TASKS</span></h3>
             </div>
             <div className="glass p-6 rounded-3xl border border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
@@ -680,75 +783,45 @@ function App() {
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="flex items-center justify-between px-4">
-              <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-[0.3em]">ACTIVE OBJECTIVES</h2>
-              <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-black">LATEST FIRST</span>
+          <div className="space-y-12">
+            {/* Today's Objectives */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between px-4">
+                <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-[0.3em] flex items-center gap-3">
+                  Today's Focus <span className="w-2 h-2 rounded-full bg-primary" />
+                </h2>
+                <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-widest">Active</span>
+              </div>
+              
+              <AnimatePresence mode="popLayout">
+                {categorizedTasks.today.length > 0 ? (
+                  categorizedTasks.today.map((task) => (
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} API_URL={API_URL} />
+                  ))
+                ) : (
+                  <div className="text-center py-12 glass rounded-[32px] border border-white/5 opacity-50">
+                    <p className="text-sm font-bold text-white/40 uppercase tracking-widest italic">No objectives set for today yet 💎</p>
+                  </div>
+                )}
+              </AnimatePresence>
             </div>
 
-            <AnimatePresence mode="popLayout">
-              {tasks.map((task) => (
-                <motion.div
-                  key={task.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, x: 20 }}
-                  className={`glass-card p-1 relative border border-white/5 group ${task.is_completed ? 'opacity-40 grayscale-[0.8]' : ''}`}
-                >
-                  <div className={`p-6 rounded-[22px] flex items-start gap-6 bg-gradient-to-br ${task.is_completed ? 'from-white/[0.02] to-transparent' : 'from-white/[0.05] to-transparent'}`}>
-                    <button
-                      onClick={() => toggleTask(task)}
-                      className={`flex-shrink-0 w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all transform active:scale-90 ${
-                        task.is_completed
-                          ? 'bg-gradient-to-br from-primary to-blue-600 border-transparent shadow-xl shadow-primary/30'
-                          : 'border-white/10 hover:border-primary/50 bg-white/5'
-                      }`}
-                    >
-                      {task.is_completed && <Check size={24} className="text-white font-black" />}
-                    </button>
-
-                    <div 
-                      className="flex-1 min-w-0 cursor-pointer group/title"
-                      onClick={() => setSelectedTask(task)}
-                    >
-                      <h3 className={`text-2xl font-black truncate mb-2 transition-colors ${task.is_completed ? 'line-through text-muted-foreground' : 'text-white group-hover/title:text-primary'}`}>
-                        {task.title}
-                      </h3>
-                      {task.description && (
-                        <p className={`text-lg leading-relaxed mb-4 line-clamp-2 ${task.is_completed ? 'text-muted-foreground/40' : 'text-muted-foreground'}`}>
-                          {task.description}
-                        </p>
-                      )}
-                      
-                      <div className="flex flex-wrap items-center gap-4 text-[11px] font-black text-muted-foreground/40 uppercase tracking-[0.1em]">
-                        <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
-                          <Calendar size={13} className="text-primary" />
-                          {formatTaskDate(task.created_at).full}
-                        </div>
-                        <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-xl border border-white/5">
-                          <Clock size={13} className="text-blue-400" />
-                          {formatTaskDate(task.created_at).time}
-                        </div>
-                        {task.is_completed && (
-                           <div className="flex items-center gap-2 bg-green-500/10 px-3 py-1.5 rounded-xl border border-green-500/20 text-green-500">
-                            <CheckCircle2 size={13} />
-                            COMPLETED
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => deleteTask(task.id)}
-                      className="p-4 text-muted-foreground/30 hover:text-red-500 hover:bg-red-500/10 rounded-2xl transition-all transform hover:scale-110"
-                    >
-                      <Trash2 size={24} />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+            {/* Backlog Section */}
+            {categorizedTasks.backlog.length > 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between px-4">
+                  <h2 className="text-sm font-bold text-red-500/50 uppercase tracking-[0.3em] flex items-center gap-3">
+                    Unfinished Backlog <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  </h2>
+                </div>
+                
+                <AnimatePresence mode="popLayout">
+                  {categorizedTasks.backlog.map((task) => (
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} API_URL={API_URL} />
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
 
             {tasks.length === 0 && (
               <div className="text-center py-32 glass rounded-[40px] border border-white/5 relative overflow-hidden">

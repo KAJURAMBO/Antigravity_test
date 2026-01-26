@@ -14,7 +14,9 @@ import os
 
 
 # Ensure upload directory exists
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "uploads")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+UPLOAD_DIR = os.path.join(STATIC_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
@@ -40,7 +42,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 class GoogleAuthRequest(BaseModel):
