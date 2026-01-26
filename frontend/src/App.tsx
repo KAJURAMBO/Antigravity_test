@@ -6,6 +6,7 @@ import {
   BarChart as ReBarChart, Bar, Cell
 } from 'recharts'
 import { GoogleLogin, googleLogout } from '@react-oauth/google'
+import { TeamView } from './components/TeamView'
 
 interface Task {
   id: number
