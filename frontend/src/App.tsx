@@ -374,13 +374,20 @@ function App() {
       }
     }).reverse()
 
-    timeframeDays.forEach(day => dailyData[day.key] = 0)
+    timeframeDays.forEach(day => {
+      dailyData[`${day.key}-active`] = 0
+      dailyData[`${day.key}-done`] = 0
+    })
 
     tasks.forEach(t => {
       const d = new Date(t.created_at)
       const key = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
       if (timeframeDays.some(td => td.key === key)) {
-        dailyData[key] = (dailyData[key] || 0) + 1
+        if (t.is_completed) {
+          dailyData[`${key}-done`] = (dailyData[`${key}-done`] || 0) + 1
+        } else {
+          dailyData[`${key}-active`] = (dailyData[`${key}-active`] || 0) + 1
+        }
       }
     })
 
@@ -388,16 +395,30 @@ function App() {
       name: analyticsTimeframe === '30d' 
         ? d.key
         : d.date.toLocaleDateString(undefined, { weekday: 'short' }),
-      tasks: dailyData[d.key] || 0
+      active: dailyData[`${d.key}-active`] || 0,
+      done: dailyData[`${d.key}-done`] || 0
     }))
   }, [tasks, analyticsTimeframe])
 
   const completionData = useMemo(() => {
-    const completed = tasks.filter(t => t.is_completed).length
-    const active = tasks.length - completed
+    const today = new Date().toLocaleDateString()
+    
+    // 1. Done Tasks
+    const done = tasks.filter(t => t.is_completed).length
+
+    // 2. Active Tasks (Split into Today vs Backlog)
+    const activeTasks = tasks.filter(t => !t.is_completed)
+    
+    const activeToday = activeTasks.filter(t => {
+      return new Date(t.created_at).toLocaleDateString() === today
+    }).length
+
+    const backlog = activeTasks.length - activeToday
+
     return [
-      { name: 'Active', value: active, color: '#8b5cf6' },
-      { name: 'Done', value: completed, color: '#22c55e' }
+      { name: 'Done', value: done, color: '#22c55e' },
+      { name: 'Active', value: activeToday, color: '#8b5cf6' },
+      { name: 'Backlog', value: backlog, color: '#ef4444' }
     ]
   }, [tasks])
 
@@ -780,9 +801,13 @@ function App() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
-                    <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
                       <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorDone" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff01" />
@@ -791,7 +816,8 @@ function App() {
                     contentStyle={{ background: '#1a1a1a', border: '1px solid #ffffff10', borderRadius: '12px' }}
                     itemStyle={{ color: '#ffffff' }}
                   />
-                  <Area type="monotone" dataKey="tasks" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorTasks)" strokeWidth={3} />
+                  <Area type="monotone" dataKey="done" stackId="1" stroke="#22c55e" fillOpacity={1} fill="url(#colorDone)" strokeWidth={2} name="Completed" />
+                  <Area type="monotone" dataKey="active" stackId="1" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorActive)" strokeWidth={2} name="Backlog (Active)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
