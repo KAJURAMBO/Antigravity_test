@@ -101,6 +101,7 @@ class TaskUpdate(SQLModel):
     description: Optional[str] = None
     is_completed: Optional[bool] = None
     created_at: Optional[datetime] = None
+    assignee_id: Optional[int] = None
 
 
 class UserUpdate(SQLModel):
@@ -112,3 +113,20 @@ class UserUpdate(SQLModel):
 
 class UserRead(UserBase):
     id: int
+
+
+class TeamBase(SQLModel):
+    name: str
+
+
+class TeamCreate(TeamBase):
+    pass
+
+
+class TeamRead(TeamBase):
+    id: int
+    owner_id: int
+
+
+class TeamInvite(SQLModel):
+    email: str
