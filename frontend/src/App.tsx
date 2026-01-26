@@ -358,7 +358,10 @@ function App() {
 
       return Array.from({ length: 24 }, (_, i) => ({
         name: `${i}:00`,
-        tasks: hourlyData[i] || 0
+        active: hourlyData[i] || 0,
+        backlog: 0,
+        done: 0,
+        future: 0
       }))
     }
 
