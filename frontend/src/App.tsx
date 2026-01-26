@@ -891,9 +891,9 @@ function App() {
                     contentStyle={{ background: '#1a1a1a', border: '1px solid #ffffff10', borderRadius: '12px' }}
                     itemStyle={{ color: '#ffffff' }}
                   />
-                  <Area type="monotone" dataKey="done" stackId="1" stroke="#22c55e" fillOpacity={1} fill="url(#gradientDone)" strokeWidth={3} name="Completed" />
-                  <Area type="monotone" dataKey="backlog" stackId="1" stroke="#ef4444" fillOpacity={1} fill="url(#gradientBacklog)" strokeWidth={3} name="Backlog (Past)" />
-                  <Area type="monotone" dataKey="active" stackId="1" stroke="#8b5cf6" fillOpacity={1} fill="url(#gradientActive)" strokeWidth={3} name="Active (Today)" />
+                  <Area type="monotone" dataKey="backlog" stackId="1" stroke="#ef4444" fillOpacity={1} fill="url(#gradientBacklog)" strokeWidth={2} name="Backlog (Past)" />
+                  <Area type="monotone" dataKey="done" stackId="1" stroke="#22c55e" fillOpacity={1} fill="url(#gradientDone)" strokeWidth={2} name="Completed" />
+                  <Area type="monotone" dataKey="active" stackId="1" stroke="#8b5cf6" fillOpacity={1} fill="url(#gradientActive)" strokeWidth={2} name="Active (Today)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
