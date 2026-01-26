@@ -401,6 +401,9 @@ function App() {
       const d = new Date(t.created_at)
       const key = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
       if (timeframeDays.some(td => td.key === key)) {
+        if (t.is_completed) {
+          dailyData[`${key}-done`] = (dailyData[`${key}-done`] || 0) + 1
+        } else {
           const dDate = new Date(t.created_at)
           const now = new Date()
           
