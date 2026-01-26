@@ -18,6 +18,8 @@ interface TeamViewProps {
 export function TeamView({ apiFetch, currentUser, showToast }: TeamViewProps) {
   const [members, setMembers] = useState<UserProfile[]>([])
   const [inviteEmail, setInviteEmail] = useState('')
+  const [inviting, setInviting] = useState(false)
+
   const fetchMembers = async () => {
     try {
       const data = await apiFetch('/teams/members')
