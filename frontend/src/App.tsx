@@ -77,7 +77,7 @@ const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDat
           {task.is_completed && (
              <div className="flex items-center gap-2 bg-green-500/10 px-3 py-1.5 rounded-xl border border-green-500/20 text-green-500">
               <CheckCircle2 size={13} />
-              COMPLETED
+              {new Date(task.created_at).setHours(0,0,0,0) > new Date().setHours(0,0,0,0) ? 'ADVANCE DONE' : 'COMPLETED'}
             </div>
           )}
         </div>
