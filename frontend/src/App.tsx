@@ -511,41 +511,36 @@ function App() {
     }
 
     const filteredFocus = tasks.filter(t => {
-      // 1. Filter by Status
+      // 1. High Priority Status Filters (Override Timeframe)
+      // Future Tasks: Independent of "Today/7d/30d" timeframe settings
+      if (listStatus === 'future') {
+          const d = new Date(t.created_at)
+          d.setHours(0, 0, 0, 0)
+          return d.getTime() > now.getTime() && !t.is_completed
+      }
+
+      // Backlog Tasks: Independent of Timeframe (Past Incomplete)
       if (listStatus === 'backlog') {
-         // Backlog view only shows incomplete tasks from BEFORE today (regardless of timeframe)
-         // OR strict enforcement: Backlog status ignores 'listTimeframe' usually? 
-         // User Request: "Active" = Purple, "Backlog" = Red.
-         // Let's rely on the definition: Backlog = Not Completed AND Date < Today.
          const d = new Date(t.created_at)
          d.setHours(0,0,0,0)
          if (d.getTime() >= now.getTime()) return false
          return !t.is_completed
-         
       }
+
+      // 2. Main Logic for Active/Done Tasks
+      
+      // First, check basic status validity
       if (listStatus === 'active') {
-          // Active = Not Completed AND Date == Today (since future is separate)
-          // Actually, standard "Active" usually implies "Current Focus".
-          // If we separate Backlog, then "Active" in the list should probably allow the user to see tasks fitting the timeframe.
-          // IF timeframe=Today, Active = Today's tasks.
-          
           if (t.is_completed) return false
-          // If filtering by status 'active', exclude backlog items (older than today) if we want strict separation
-          // But usually timeframe handles the date.
-          // Let's follow UI logic: 
-          // If I click "Active" Card, I expect to see Active tasks.
-          // If I click "Backlog" Card, I expect to see Backlog tasks.
-          
-          // Strict separation logic:
+          // Active usually = Today or Timeframe. 
+          // If strict today separation:
           const d = new Date(t.created_at)
           d.setHours(0,0,0,0)
-          if (d.getTime() < now.getTime()) return false // Old tasks go to Backlog view
+          if (d.getTime() < now.getTime()) return false // Loop old active tasks to Backlog view
       } 
       if (listStatus === 'done' && !t.is_completed) return false
 
-      // 2. Filter by Timeframe (Only applies to Done and Active-Future/Today?)
-      // Actually if I click "Backlog", I probably want to see ALL backlog.
-      if ((listStatus as string) === 'backlog') return true
+      // 3. Timeframe Logic (Only applies to Active and Done)
       const taskDate = new Date(t.created_at)
       taskDate.setHours(0, 0, 0, 0)
       
@@ -556,11 +551,7 @@ function App() {
       } else if (listTimeframe === '30d') {
         return isWithinDays(t.created_at, 30)
       }
-      if (listStatus === 'future') {
-          const d = new Date(t.created_at)
-          d.setHours(0, 0, 0, 0)
-          return d.getTime() > now.getTime() && !t.is_completed
-      }
+      
       return false
     })
 
