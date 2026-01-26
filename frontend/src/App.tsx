@@ -880,9 +880,7 @@ function App() {
           <div className="glass p-8 rounded-3xl border border-white/5 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h3 className="text-xl font-bold text-white flex items-center gap-3">
-                <TrendingUp size={20} className="text-primary" /> Activity Trend
-              </h3>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                  <button 
                    onClick={() => setListStatus('backlog')}
                    className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${listStatus === 'backlog' ? 'bg-red-500/20 border-red-500/50' : 'bg-white/5 border-transparent hover:bg-white/10'}`}
