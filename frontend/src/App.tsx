@@ -861,7 +861,8 @@ function App() {
             <div ref={statsDropdownRef} className="grid grid-cols-2 gap-4 relative">
               <div className="relative">
                 <button 
-                  onClick={() => {
+                  onMouseDown={(e) => {
+                    e.stopPropagation()
                     setListStatus('active')
                     setOpenStatsDropdown(openStatsDropdown === 'active' ? null : 'active')
                   }}
@@ -908,7 +909,8 @@ function App() {
 
               <div className="relative">
                 <button 
-                  onClick={() => {
+                  onMouseDown={(e) => {
+                    e.stopPropagation()
                     setListStatus('done')
                     setOpenStatsDropdown(openStatsDropdown === 'done' ? null : 'done')
                   }}
@@ -1146,7 +1148,10 @@ function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedTask(null)}
+              onMouseDown={() => {
+                setSelectedTask(null)
+                setIsEditingTask(false)
+              }}
               className="absolute inset-0 bg-[#0a0a0a]/80 backdrop-blur-xl"
             />
             
