@@ -930,7 +930,7 @@ function App() {
         </nav>
 
         {/* Left Side: Analytics Dashboard */}
-        <aside className="lg:w-[450px] space-y-8">
+        <aside className="lg:w-[450px] space-y-8 order-2 lg:order-none">
           <header className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="p-4 bg-primary/20 rounded-3xl">
