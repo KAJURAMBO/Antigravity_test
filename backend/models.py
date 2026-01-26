@@ -13,10 +13,42 @@ class UserBase(SQLModel):
     theme: Optional[str] = "dark"
 
 
+class TeamMember(SQLModel, table=True):
+    team_id: Optional[int] = Field(
+        default=None, foreign_key="team.id", primary_key=True
+    )
+    user_id: Optional[int] = Field(
+        default=None, foreign_key="user.id", primary_key=True
+    )
+    role: str = Field(default="member")  # owner, member
+
+
+class Team(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    owner_id: int = Field(foreign_key="user.id")
+
+    owner: "User" = Relationship(
+        sa_relationship_kwargs={
+            "primaryjoin": "Team.owner_id==User.id",
+            "lazy": "joined",
+        }
+    )
+    members: List["User"] = Relationship(back_populates="teams", link_model=TeamMember)
+
+
 class User(UserBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    tasks: List["Task"] = Relationship(back_populates="user")
+    tasks: List["Task"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"primaryjoin": "Task.user_id==User.id"},
+    )
+    assigned_tasks: List["Task"] = Relationship(
+        back_populates="assignee",
+        sa_relationship_kwargs={"primaryjoin": "Task.assignee_id==User.id"},
+    )
+    teams: List[Team] = Relationship(back_populates="members", link_model=TeamMember)
 
     @field_serializer("created_at")
     def serialize_dt(self, dt: datetime, _info):
@@ -29,14 +61,26 @@ class TaskBase(SQLModel):
     title: str
     description: Optional[str] = None
     is_completed: bool = False
+    assignee_id: Optional[int] = None
 
 
 class Task(TaskBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
+
+    # The creator of the task
     user_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    user: Optional[User] = Relationship(back_populates="tasks")
+    user: Optional[User] = Relationship(
+        back_populates="tasks", sa_relationship_kwargs={"foreign_keys": "Task.user_id"}
+    )
+
+    # The person assigned to do the task
+    assignee_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    assignee: Optional[User] = Relationship(
+        back_populates="assigned_tasks",
+        sa_relationship_kwargs={"foreign_keys": "Task.assignee_id"},
+    )
 
     @field_serializer("created_at", "updated_at")
     def serialize_dt(self, dt: Optional[datetime], _info):
