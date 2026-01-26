@@ -959,7 +959,7 @@ function App() {
                   <Area type="monotone" dataKey="backlog" stackId="1" stroke="#ef4444" fillOpacity={1} fill="url(#gradientBacklog)" strokeWidth={2} name="Backlog (Past)" />
                   <Area type="monotone" dataKey="done" stackId="1" stroke="#22c55e" fillOpacity={1} fill="url(#gradientDone)" strokeWidth={2} name="Completed" />
                   <Area type="monotone" dataKey="active" stackId="1" stroke="#d946ef" fillOpacity={1} fill="url(#gradientActive)" strokeWidth={2} name="Active (Today)" />
-                  <Area type="monotone" dataKey="future" stackId="1" stroke="#60a5fa" fillOpacity={1} fill="url(#gradientFuture)" strokeWidth={2} name="Future (Upcoming)" />
+                  <Area type="monotone" dataKey="future" stroke="#60a5fa" fillOpacity={1} fill="url(#gradientFuture)" strokeWidth={2} name="Future (Upcoming)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
