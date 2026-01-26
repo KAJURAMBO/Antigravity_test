@@ -707,11 +707,11 @@ function App() {
           <Clock size={48} className="text-primary animate-spin" />
           <div className="text-center space-y-2">
             <p className="text-white font-bold tracking-widest animate-pulse">
-              {longLoading ? 'WAKING UP SERVER...' : 'AUTHENTICATING...'}
+              {longLoading ? 'INITIALIZING MISSION CONTROL...' : 'AUTHENTICATING...'}
             </p>
             {longLoading && (
               <p className="text-[10px] text-white/40 max-w-[200px] leading-relaxed">
-                First login takes time on free servers. Thanks for waiting! ☕
+                Please hold, establishing secure connection to squad servers... ⚡
               </p>
             )}
           </div>
