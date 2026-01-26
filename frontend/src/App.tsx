@@ -883,10 +883,41 @@ function App() {
         style={{ x: springX, y: springY, translateX: '-50%', translateY: '-50%' }}
       />
 
-      <div className="relative max-w-[1600px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
+      <div className="relative max-w-[1700px] mx-auto flex flex-col lg:flex-row gap-8 sm:gap-10">
         
+        {/* Navigation Sidebar */}
+        <nav className="flex lg:flex-col items-center gap-4 bg-white/[0.02] p-2 rounded-[24px] border border-white/5 h-fit lg:sticky lg:top-8">
+          <button 
+            onClick={() => setViewMode('board')}
+            className={`p-4 rounded-2xl transition-all group relative flex items-center justify-center ${viewMode === 'board' ? 'bg-primary text-white shadow-[0_0_20px_rgba(139,92,246,0.5)]' : 'text-white/40 hover:bg-white/10 hover:text-white'}`}
+            title="My Board"
+          >
+            <Layout size={24} />
+            {viewMode === 'board' && <motion.div layoutId="nav-pill" className="absolute -bottom-1 lg:-bottom-auto lg:-right-3 w-4 lg:w-1 h-1 lg:h-8 bg-white rounded-full" />}
+          </button>
+          
+          <button 
+            onClick={() => setViewMode('team')}
+            className={`p-4 rounded-2xl transition-all group relative flex items-center justify-center ${viewMode === 'team' ? 'bg-blue-500 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)]' : 'text-white/40 hover:bg-white/10 hover:text-white'}`}
+            title="Team Squad"
+          >
+            <UserIcon size={24} />
+            {viewMode === 'team' && <motion.div layoutId="nav-pill" className="absolute -bottom-1 lg:-bottom-auto lg:-right-3 w-4 lg:w-1 h-1 lg:h-8 bg-white rounded-full" />}
+          </button>
+
+          <div className="hidden lg:block w-full h-px bg-white/5 my-2" />
+
+          <button 
+            onClick={() => setShowProfile(true)}
+            className="p-4 rounded-2xl text-white/40 hover:bg-white/10 hover:text-white transition-all group relative flex items-center justify-center"
+            title="Profile Settings"
+          >
+            <Settings size={22} />
+          </button>
+        </nav>
+
         {/* Left Side: Analytics Dashboard */}
-        <aside className="lg:col-span-5 space-y-8 order-2 lg:order-1">
+        <aside className="lg:w-[450px] space-y-8">
           <header className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="p-4 bg-primary/20 rounded-3xl">
@@ -1028,7 +1059,7 @@ function App() {
         </aside>
 
         {/* Right Side: To-Do App */}
-        <main className="lg:col-span-7 space-y-8 order-1 lg:order-2">
+        <main className="flex-1 space-y-8 order-1 lg:order-none">
           {viewMode === 'team' && user ? (
              <TeamView apiFetch={apiFetch} currentUser={user} showToast={showToast} />
           ) : (
