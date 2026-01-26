@@ -113,6 +113,7 @@ function App() {
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editDate, setEditDate] = useState('')
+  const [openStatsDropdown, setOpenStatsDropdown] = useState<'active' | 'done' | null>(null)
 
   // Cursor Tracking
   const mouseX = useMotionValue(0)
@@ -845,27 +846,100 @@ function App() {
             </div>
 
             {/* Bottom Row: Stats - Stays prominent on mobile */}
-            <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => setListStatus('active')}
-                className={`glass p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-[0.98] ${listStatus === 'active' ? 'border-primary/50 bg-primary/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full bg-primary ${listStatus === 'active' ? 'shadow-[0_0_8px_rgba(139,92,246,0.5)]' : ''}`} />
-                  <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Active</span>
-                </div>
-                <span className="text-white font-black text-sm">{pendingTasks}</span>
-              </button>
-              <button 
-                onClick={() => setListStatus('done')}
-                className={`glass p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-[0.98] ${listStatus === 'done' ? 'border-green-500/50 bg-green-500/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full bg-green-500 ${listStatus === 'done' ? 'shadow-[0_0_8px_rgba(34,197,94,0.5)]' : ''}`} />
-                  <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Done</span>
-                </div>
-                <span className="text-white font-black text-sm">{completedTasks}</span>
-              </button>
+            <div className="grid grid-cols-2 gap-4 relative">
+              <div className="relative">
+                <button 
+                  onClick={() => {
+                    setListStatus('active')
+                    setOpenStatsDropdown(openStatsDropdown === 'active' ? null : 'active')
+                  }}
+                  className={`w-full glass p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-[0.98] ${listStatus === 'active' ? 'border-primary/50 bg-primary/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full bg-primary ${listStatus === 'active' ? 'shadow-[0_0_8px_rgba(139,92,246,0.5)]' : ''}`} />
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Active</span>
+                  </div>
+                  <span className="text-white font-black text-sm">{pendingTasks}</span>
+                </button>
+
+                <AnimatePresence>
+                  {openStatsDropdown === 'active' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute top-full left-0 right-0 mt-2 z-50 glass-card border border-white/10 p-2 overflow-hidden shadow-2xl"
+                    >
+                      <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-1">
+                        {tasks.filter(t => !t.is_completed).length > 0 ? (
+                          tasks.filter(t => !t.is_completed).map(t => (
+                            <button
+                              key={t.id}
+                              onClick={() => {
+                                setSelectedTask(t)
+                                setOpenStatsDropdown(null)
+                              }}
+                              className="w-full text-left p-3 hover:bg-white/5 rounded-xl transition-all group"
+                            >
+                              <p className="text-[10px] font-bold text-white/80 group-hover:text-primary truncate">{t.title}</p>
+                              <p className="text-[8px] text-white/30 uppercase tracking-tighter">View Mission Details →</p>
+                            </button>
+                          ))
+                        ) : (
+                          <p className="p-4 text-[10px] text-white/30 italic text-center">No active missions 💎</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="relative">
+                <button 
+                  onClick={() => {
+                    setListStatus('done')
+                    setOpenStatsDropdown(openStatsDropdown === 'done' ? null : 'done')
+                  }}
+                  className={`w-full glass p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-[0.98] ${listStatus === 'done' ? 'border-green-500/50 bg-green-500/10' : 'border-white/5 bg-white/[0.02] hover:bg-white/5'}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full bg-green-500 ${listStatus === 'done' ? 'shadow-[0_0_8px_rgba(34,197,94,0.5)]' : ''}`} />
+                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Done</span>
+                  </div>
+                  <span className="text-white font-black text-sm">{completedTasks}</span>
+                </button>
+
+                <AnimatePresence>
+                  {openStatsDropdown === 'done' && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute top-full left-0 right-0 mt-2 z-50 glass-card border border-white/10 p-2 overflow-hidden shadow-2xl"
+                    >
+                      <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-1">
+                        {tasks.filter(t => t.is_completed).length > 0 ? (
+                          tasks.filter(t => t.is_completed).map(t => (
+                            <button
+                              key={t.id}
+                              onClick={() => {
+                                setSelectedTask(t)
+                                setOpenStatsDropdown(null)
+                              }}
+                              className="w-full text-left p-3 hover:bg-white/5 rounded-xl transition-all group"
+                            >
+                              <p className="text-[10px] font-bold text-white/80 group-hover:text-green-500 truncate">{t.title}</p>
+                              <p className="text-[8px] text-white/30 uppercase tracking-tighter">View Success Log →</p>
+                            </button>
+                          ))
+                        ) : (
+                          <p className="p-4 text-[10px] text-white/30 italic text-center">No missions completed 💎</p>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
 
