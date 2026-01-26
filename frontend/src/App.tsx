@@ -106,14 +106,14 @@ function App() {
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'today' | '7d' | '30d'>('7d')
   const [scheduledDate, setScheduledDate] = useState('')
   const [listTimeframe, setListTimeframe] = useState<'today' | '7d' | '30d'>('today')
-  const [listStatus, setListStatus] = useState<'active' | 'backlog' | 'done'>('active')
+  const [listStatus, setListStatus] = useState<'active' | 'backlog' | 'done' | 'future'>('active')
 
   // Edit Task States
   const [isEditingTask, setIsEditingTask] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editDate, setEditDate] = useState('')
-  const [openStatsDropdown, setOpenStatsDropdown] = useState<'active' | 'backlog' | 'done' | null>(null)
+  const [openStatsDropdown, setOpenStatsDropdown] = useState<'active' | 'backlog' | 'done' | 'future' | null>(null)
 
   // Dropdown Refs
   const statsDropdownRef = useRef<HTMLDivElement>(null)
@@ -460,9 +460,17 @@ function App() {
     today.setHours(0,0,0,0)
     return d.getTime() < today.getTime()
   })
+  const futureTasks = activeTasksTotal.filter(t => {
+    const d = new Date(t.created_at)
+    d.setHours(0,0,0,0)
+    const today = new Date()
+    today.setHours(0,0,0,0)
+    return d.getTime() > today.getTime()
+  })
   
   const activeTodayCount = activeTodayTasks.length
   const backlogCount = backlogTasks.length
+  const futureCount = futureTasks.length
 
   const [showProfile, setShowProfile] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
@@ -527,6 +535,11 @@ function App() {
         return isWithinDays(t.created_at, 7)
       } else if (listTimeframe === '30d') {
         return isWithinDays(t.created_at, 30)
+      }
+      if (listStatus === 'future') {
+          const d = new Date(t.created_at)
+          d.setHours(0, 0, 0, 0)
+          return d.getTime() > now.getTime() && !t.is_completed
       }
       return false
     })
@@ -894,6 +907,14 @@ function App() {
                    <span className="text-[10px] font-black uppercase text-white/60">Done</span>
                    <span className="text-xs font-bold text-white">{completedTasks}</span>
                  </button>
+                 <button 
+                   onClick={() => setListStatus('future')}
+                   className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${listStatus === 'future' ? 'bg-blue-400/20 border-blue-400/50' : 'bg-white/5 border-transparent hover:bg-white/10'}`}
+                 >
+                   <div className="w-2 h-2 rounded-full bg-blue-400" />
+                   <span className="text-[10px] font-black uppercase text-white/60">Future</span>
+                   <span className="text-xs font-bold text-white">{futureCount}</span>
+                 </button>
               </div>
             </div>
             <div className="h-[250px] w-full">
@@ -1221,17 +1242,17 @@ function App() {
               <div className="h-6 w-px bg-white/10 hidden sm:block" />
 
               <div className="flex p-1 bg-black/20 rounded-xl border border-white/5">
-                {(['backlog', 'active', 'done'] as const).map((st) => (
+                {(['backlog', 'active', 'done', 'future'] as const).map((st) => (
                   <button
                     key={st}
                     onClick={() => setListStatus(st)}
                     className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all flex items-center gap-2 ${
                       listStatus === st 
-                      ? (st === 'backlog' ? 'bg-red-500' : st === 'active' ? 'bg-primary' : 'bg-green-600') + ' text-white shadow-lg shadow-white/10' 
+                      ? (st === 'backlog' ? 'bg-red-500' : st === 'active' ? 'bg-primary' : st === 'done' ? 'bg-green-600' : 'bg-blue-400') + ' text-white shadow-lg shadow-white/10' 
                       : 'text-white/30 hover:text-white'
                     }`}
                   >
-                    {st === 'backlog' ? '⚠️' : st === 'active' ? <Clock size={10} /> : <CheckCircle2 size={10} />}
+                    {st === 'backlog' ? '⚠️' : st === 'active' ? <Clock size={10} /> : st === 'done' ? <CheckCircle2 size={10} /> : <Calendar size={10} />}
                     {st === 'backlog' ? 'BACKLOG' : st.toUpperCase()}
                   </button>
                 ))}
@@ -1243,9 +1264,9 @@ function App() {
               <div className="flex items-center justify-between px-4">
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-[0.3em] flex items-center gap-3">
                   {listTimeframe === 'today' ? "Today's" : listTimeframe.toUpperCase()} Focus 
-                  <span className={`w-2 h-2 rounded-full ${listStatus === 'backlog' ? 'bg-red-500' : listStatus === 'active' ? 'bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]' : 'bg-green-500'}`} />
+                  <span className={`w-2 h-2 rounded-full ${listStatus === 'backlog' ? 'bg-red-500' : listStatus === 'active' ? 'bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]' : listStatus === 'done' ? 'bg-green-500' : 'bg-blue-400'}`} />
                 </h2>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${listStatus === 'backlog' ? 'bg-red-500/10 text-red-500' : listStatus === 'active' ? 'bg-primary/10 text-primary' : 'bg-green-500/10 text-green-500'}`}>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${listStatus === 'backlog' ? 'bg-red-500/10 text-red-500' : listStatus === 'active' ? 'bg-primary/10 text-primary' : listStatus === 'done' ? 'bg-green-500/10 text-green-500' : 'bg-blue-400/10 text-blue-400'}`}>
                   {listStatus === 'backlog' ? 'BACKLOG' : listStatus.toUpperCase()}
                 </span>
               </div>
