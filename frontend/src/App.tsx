@@ -105,6 +105,8 @@ function App() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | '30d'>('7d')
   const [scheduledDate, setScheduledDate] = useState('')
+  const [listTimeframe, setListTimeframe] = useState<'today' | '7d' | '30d'>('today')
+  const [listStatus, setListStatus] = useState<'active' | 'done'>('active')
 
   // Cursor Tracking
   const mouseX = useMotionValue(0)
@@ -330,12 +332,40 @@ function App() {
   
   // Task Grouping Logic
   const categorizedTasks = useMemo(() => {
-    const todayStr = new Date().toLocaleDateString()
     const now = new Date()
     now.setHours(0, 0, 0, 0)
+    const todayStr = now.toLocaleDateString()
     
+    // Helper to check if a date is within X days from now
+    const isWithinDays = (dateStr: string, days: number) => {
+      const d = new Date(dateStr)
+      d.setHours(0, 0, 0, 0)
+      const diffTime = now.getTime() - d.getTime()
+      const diffDays = diffTime / (1000 * 60 * 60 * 24)
+      return diffDays >= 0 && diffDays < days
+    }
+
+    const filteredFocus = tasks.filter(t => {
+      // 1. Filter by Status
+      if (listStatus === 'active' && t.is_completed) return false
+      if (listStatus === 'done' && !t.is_completed) return false
+
+      // 2. Filter by Timeframe
+      const taskDate = new Date(t.created_at)
+      taskDate.setHours(0, 0, 0, 0)
+      
+      if (listTimeframe === 'today') {
+        return taskDate.toLocaleDateString() === todayStr
+      } else if (listTimeframe === '7d') {
+        return isWithinDays(t.created_at, 7)
+      } else if (listTimeframe === '30d') {
+        return isWithinDays(t.created_at, 30)
+      }
+      return false
+    })
+
     return {
-      today: tasks.filter(t => new Date(t.created_at).toLocaleDateString() === todayStr),
+      focus: filteredFocus,
       backlog: tasks.filter(t => {
         const d = new Date(t.created_at)
         d.setHours(0, 0, 0, 0)
@@ -347,7 +377,7 @@ function App() {
         return d > now
       })
     }
-  }, [tasks])
+  }, [tasks, listTimeframe, listStatus])
   const [editingName, setEditingName] = useState('')
   const [editingBio, setEditingBio] = useState('')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -747,21 +777,61 @@ function App() {
               </div>
             </div>
 
-            {/* Bottom Row: Stats - Stays prominent on mobile */}
-            <div className="flex items-center justify-start gap-4">
-              <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-3 border border-white/5">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Done</span>
+            {/* Bottom Row: Stats & Filters - Stays prominent on mobile */}
+            <div className="flex flex-col gap-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="glass p-4 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
+                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Active</span>
+                  </div>
+                  <span className="text-white font-black text-sm">{pendingTasks}</span>
                 </div>
-                <span className="text-white font-black text-sm">{completedTasks}</span>
+                <div className="glass p-4 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Completed</span>
+                  </div>
+                  <span className="text-white font-black text-sm">{completedTasks}</span>
+                </div>
               </div>
-              <div className="px-4 py-2 bg-white/5 rounded-2xl flex items-center gap-3 border border-white/5">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Active</span>
+
+              {/* Advanced Filter Bar */}
+              <div className="flex flex-wrap items-center gap-4 bg-white/[0.02] p-2 rounded-[22px] border border-white/5">
+                <div className="flex p-1 bg-black/20 rounded-xl border border-white/5">
+                  {(['today', '7d', '30d'] as const).map((tf) => (
+                    <button
+                      key={tf}
+                      onClick={() => setListTimeframe(tf)}
+                      className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all ${
+                        listTimeframe === tf 
+                        ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                        : 'text-white/30 hover:text-white'
+                      }`}
+                    >
+                      {tf === 'today' ? 'Today' : tf.toUpperCase()}
+                    </button>
+                  ))}
                 </div>
-                <span className="text-white font-black text-sm">{pendingTasks}</span>
+                
+                <div className="h-6 w-px bg-white/10 hidden sm:block" />
+
+                <div className="flex p-1 bg-black/20 rounded-xl border border-white/5">
+                  {(['active', 'done'] as const).map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setListStatus(st)}
+                      className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all flex items-center gap-2 ${
+                        listStatus === st 
+                        ? (st === 'active' ? 'bg-primary' : 'bg-green-600') + ' text-white shadow-lg shadow-white/10' 
+                        : 'text-white/30 hover:text-white'
+                      }`}
+                    >
+                      {st === 'active' ? <Clock size={10} /> : <CheckCircle2 size={10} />}
+                      {st}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -808,23 +878,26 @@ function App() {
           </div>
 
           <div className="space-y-12">
-            {/* Today's Objectives */}
+            {/* Dynamic Focus Section */}
             <div className="space-y-6">
               <div className="flex items-center justify-between px-4">
                 <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-[0.3em] flex items-center gap-3">
-                  Today's Focus <span className="w-2 h-2 rounded-full bg-primary" />
+                  {listTimeframe === 'today' ? "Today's" : listTimeframe.toUpperCase()} Focus 
+                  <span className={`w-2 h-2 rounded-full ${listStatus === 'active' ? 'bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]' : 'bg-green-500'}`} />
                 </h2>
-                <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-widest">Active</span>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${listStatus === 'active' ? 'bg-primary/10 text-primary' : 'bg-green-500/10 text-green-500'}`}>
+                  {listStatus}
+                </span>
               </div>
               
               <AnimatePresence mode="popLayout">
-                {categorizedTasks.today.length > 0 ? (
-                  categorizedTasks.today.map((task) => (
+                {categorizedTasks.focus.length > 0 ? (
+                  categorizedTasks.focus.map((task) => (
                     <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} />
                   ))
                 ) : (
                   <div className="text-center py-12 glass rounded-[32px] border border-white/5 opacity-50">
-                    <p className="text-sm font-bold text-white/40 uppercase tracking-widest italic">No objectives set for today yet 💎</p>
+                    <p className="text-sm font-bold text-white/40 uppercase tracking-widest italic">No {listStatus} objectives in this timeframe 💎</p>
                   </div>
                 )}
               </AnimatePresence>
