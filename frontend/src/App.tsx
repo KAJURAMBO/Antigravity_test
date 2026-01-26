@@ -1303,7 +1303,6 @@ function App() {
               <div className="flex gap-4">
                  <input
                    type="text"
-                type="text"
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && createTask()}
