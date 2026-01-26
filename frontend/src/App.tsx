@@ -777,61 +777,21 @@ function App() {
               </div>
             </div>
 
-            {/* Bottom Row: Stats & Filters - Stays prominent on mobile */}
-            <div className="flex flex-col gap-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="glass p-4 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
-                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Active</span>
-                  </div>
-                  <span className="text-white font-black text-sm">{pendingTasks}</span>
+            {/* Bottom Row: Stats - Stays prominent on mobile */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="glass p-4 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Active</span>
                 </div>
-                <div className="glass p-4 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Completed</span>
-                  </div>
-                  <span className="text-white font-black text-sm">{completedTasks}</span>
-                </div>
+                <span className="text-white font-black text-sm">{pendingTasks}</span>
               </div>
-
-              {/* Advanced Filter Bar */}
-              <div className="flex flex-wrap items-center gap-4 bg-white/[0.02] p-2 rounded-[22px] border border-white/5">
-                <div className="flex p-1 bg-black/20 rounded-xl border border-white/5">
-                  {(['today', '7d', '30d'] as const).map((tf) => (
-                    <button
-                      key={tf}
-                      onClick={() => setListTimeframe(tf)}
-                      className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all ${
-                        listTimeframe === tf 
-                        ? 'bg-primary text-white shadow-lg shadow-primary/20' 
-                        : 'text-white/30 hover:text-white'
-                      }`}
-                    >
-                      {tf === 'today' ? 'Today' : tf.toUpperCase()}
-                    </button>
-                  ))}
+              <div className="glass p-4 rounded-2xl border border-white/5 bg-white/[0.02] flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Completed</span>
                 </div>
-                
-                <div className="h-6 w-px bg-white/10 hidden sm:block" />
-
-                <div className="flex p-1 bg-black/20 rounded-xl border border-white/5">
-                  {(['active', 'done'] as const).map((st) => (
-                    <button
-                      key={st}
-                      onClick={() => setListStatus(st)}
-                      className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all flex items-center gap-2 ${
-                        listStatus === st 
-                        ? (st === 'active' ? 'bg-primary' : 'bg-green-600') + ' text-white shadow-lg shadow-white/10' 
-                        : 'text-white/30 hover:text-white'
-                      }`}
-                    >
-                      {st === 'active' ? <Clock size={10} /> : <CheckCircle2 size={10} />}
-                      {st}
-                    </button>
-                  ))}
-                </div>
+                <span className="text-white font-black text-sm">{completedTasks}</span>
               </div>
             </div>
           </div>
@@ -878,6 +838,44 @@ function App() {
           </div>
 
           <div className="space-y-12">
+            {/* Advanced Filter Bar relocated - Logic and Contextual view */}
+            <div className="flex flex-wrap items-center gap-4 bg-white/[0.02] p-2 rounded-[22px] border border-white/5 mx-4">
+              <div className="flex p-1 bg-black/20 rounded-xl border border-white/5">
+                {(['today', '7d', '30d'] as const).map((tf) => (
+                  <button
+                    key={tf}
+                    onClick={() => setListTimeframe(tf)}
+                    className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all ${
+                      listTimeframe === tf 
+                      ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                      : 'text-white/30 hover:text-white'
+                    }`}
+                  >
+                    {tf === 'today' ? 'Today' : tf.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="h-6 w-px bg-white/10 hidden sm:block" />
+
+              <div className="flex p-1 bg-black/20 rounded-xl border border-white/5">
+                {(['active', 'done'] as const).map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => setListStatus(st)}
+                    className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] rounded-lg transition-all flex items-center gap-2 ${
+                      listStatus === st 
+                      ? (st === 'active' ? 'bg-primary' : 'bg-green-600') + ' text-white shadow-lg shadow-white/10' 
+                      : 'text-white/30 hover:text-white'
+                    }`}
+                  >
+                    {st === 'active' ? <Clock size={10} /> : <CheckCircle2 size={10} />}
+                    {st}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Dynamic Focus Section */}
             <div className="space-y-6">
               <div className="flex items-center justify-between px-4">
