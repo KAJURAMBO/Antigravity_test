@@ -4,7 +4,19 @@ from contextlib import asynccontextmanager
 from sqlmodel import Session, select
 from typing import List
 from .database import smart_initialize_db, get_session
-from .models import Task, TaskCreate, TaskUpdate, User, UserRead, UserUpdate
+from .models import (
+    Task,
+    TaskCreate,
+    TaskUpdate,
+    User,
+    UserRead,
+    UserUpdate,
+    Team,
+    TeamCreate,
+    TeamRead,
+    TeamInvite,
+    TeamMember,
+)
 from .auth import create_access_token, get_current_user, verify_google_token
 from pydantic import BaseModel
 from fastapi import File, UploadFile
@@ -180,6 +192,90 @@ async def upload_profile_picture(
         raise HTTPException(status_code=500, detail="Failed to upload image")
 
 
+@app.post("/teams/", response_model=TeamRead)
+def create_team(
+    team: TeamCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    db_team = Team.model_validate(team)
+    db_team.owner_id = current_user.id
+    session.add(db_team)
+    session.commit()
+    session.refresh(db_team)
+
+    # Add owner as member
+    member = TeamMember(team_id=db_team.id, user_id=current_user.id, role="owner")
+    session.add(member)
+    session.commit()
+
+    return db_team
+
+
+@app.post("/teams/invite")
+def invite_member(
+    invite: TeamInvite,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    # Check if inviter has a team
+    team_link = session.exec(
+        select(TeamMember).where(
+            TeamMember.user_id == current_user.id, TeamMember.role == "owner"
+        )
+    ).first()
+    if not team_link:
+        # Create a default team for the user if they don't have one
+        team = Team(name=f"{current_user.full_name}'s Team", owner_id=current_user.id)
+        session.add(team)
+        session.commit()
+        session.refresh(team)
+        team_id = team.id
+        session.add(TeamMember(team_id=team_id, user_id=current_user.id, role="owner"))
+        session.commit()
+    else:
+        team_id = team_link.team_id
+
+    # Find invitee
+    invitee = session.exec(select(User).where(User.email == invite.email)).first()
+    if not invitee:
+        raise HTTPException(status_code=404, detail="User not found with that email")
+
+    # Check if already member
+    exists = session.exec(
+        select(TeamMember).where(
+            TeamMember.team_id == team_id, TeamMember.user_id == invitee.id
+        )
+    ).first()
+    if exists:
+        raise HTTPException(status_code=400, detail="User already in team")
+
+    # Add member - implicitly adding to the owner's team
+    new_member = TeamMember(team_id=team_id, user_id=invitee.id, role="member")
+    session.add(new_member)
+    session.commit()
+
+    return {"status": "invited", "user": invitee.full_name}
+
+
+@app.get("/teams/members", response_model=List[UserRead])
+def read_members(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    # Get all colleagues from all my teams
+    my_teams = session.exec(
+        select(TeamMember.team_id).where(TeamMember.user_id == current_user.id)
+    ).all()
+
+    if not my_teams:
+        return []
+
+    subquery = select(TeamMember.user_id).where(TeamMember.team_id.in_(my_teams))
+    members = session.exec(select(User).where(User.id.in_(subquery))).all()
+    return members
+
+
 # CRUD Endpoints (Protected)
 @app.post("/tasks/", response_model=Task, status_code=201)
 def create_task(
@@ -189,6 +285,11 @@ def create_task(
 ):
     db_task = Task.model_validate(task)
     db_task.user_id = current_user.id
+
+    # If no assignee, assign to self
+    if not db_task.assignee_id:
+        db_task.assignee_id = current_user.id
+
     session.add(db_task)
     session.commit()
     session.refresh(db_task)
@@ -200,7 +301,16 @@ def read_tasks(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    tasks = session.exec(select(Task).where(Task.user_id == current_user.id)).all()
+    from sqlmodel import or_
+
+    tasks = session.exec(
+        select(Task).where(
+            or_(
+                Task.assignee_id == current_user.id,
+                (Task.user_id == current_user.id) & (Task.assignee_id == None),
+            )
+        )
+    ).all()
     return tasks
 
 
