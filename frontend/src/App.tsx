@@ -345,22 +345,27 @@ function App() {
   // Data Analytics Processing
   const chartData = useMemo(() => {
     if (analyticsTimeframe === 'today') {
-      const hourlyData: { [key: number]: number } = {}
+      const hourlyActive: { [key: number]: number } = {}
+      const hourlyDone: { [key: number]: number } = {}
       const today = new Date().toLocaleDateString()
       
       tasks.forEach(t => {
         const d = new Date(t.created_at)
         if (d.toLocaleDateString() === today) {
           const hour = d.getHours()
-          hourlyData[hour] = (hourlyData[hour] || 0) + 1
+          if (t.is_completed) {
+            hourlyDone[hour] = (hourlyDone[hour] || 0) + 1
+          } else {
+            hourlyActive[hour] = (hourlyActive[hour] || 0) + 1
+          }
         }
       })
 
       return Array.from({ length: 24 }, (_, i) => ({
         name: `${i}:00`,
-        active: hourlyData[i] || 0,
+        active: hourlyActive[i] || 0,
         backlog: 0,
-        done: 0,
+        done: hourlyDone[i] || 0,
         future: 0
       }))
     }
