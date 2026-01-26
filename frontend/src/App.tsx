@@ -85,10 +85,10 @@ const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDat
                <span>Assigned to: {members.find(m => m.id === task.assignee_id)?.full_name || 'Agent'}</span>
             </div>
           )}
-          {task.assignee_id === currentUser.id && task.user_id !== currentUser.id && (
+          {task.assignee_id === currentUser.id && (
             <div className="flex items-center gap-2 bg-purple-500/10 px-3 py-1.5 rounded-xl border border-purple-500/20 text-purple-400">
                <UserIcon size={13} />
-               <span>Assigned by: {members.find(m => m.id === task.user_id)?.full_name || 'Operator'}</span>
+               <span>Assigned by: {task.user_id === currentUser.id ? 'SELF' : (members.find(m => m.id === task.user_id)?.full_name || 'Operator')}</span>
             </div>
           )}
           {task.is_completed && (
@@ -393,6 +393,9 @@ function App() {
 
   // Data Analytics Processing
   const chartData = useMemo(() => {
+    const now = new Date()
+    now.setHours(23, 59, 59, 999)
+
     if (analyticsTimeframe === 'today') {
       const hourlyActive: { [key: number]: number } = {}
       const hourlyDone: { [key: number]: number } = {}
@@ -421,18 +424,13 @@ function App() {
       }))
     }
 
-    const days = analyticsTimeframe === '7d' ? 7 : 30
-    const futureLookahead = 3 // Forecast 3 days ahead
+    const daysCount = analyticsTimeframe === '7d' ? 7 : 30
     const dailyData: { [key: string]: number } = {}
     
-    // Generate dates: Past + Today + Future
-    const timeframeDays = Array.from({ length: days + futureLookahead }).map((_, i) => {
+    // Generate dates: strictly past N days up to today
+    const timeframeDays = Array.from({ length: daysCount }).map((_, i) => {
        const d = new Date()
-       // Shift: Start from (days-1) ago. 
-       // i goes from 0 to (days + future - 1).
-       // We want d - (days - 1) + i ?
-       // Example: 7 days. i=0 should be -6 days ago. i=6 should be Today. i=9 should be Today+3.
-       d.setDate(d.getDate() - (days - 1) + i)
+       d.setDate(d.getDate() - (daysCount - 1) + i)
        return {
          key: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
          date: d
@@ -443,7 +441,6 @@ function App() {
       dailyData[`${day.key}-active`] = 0
       dailyData[`${day.key}-backlog`] = 0
       dailyData[`${day.key}-done`] = 0
-      dailyData[`${day.key}-future`] = 0
     })
 
     const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
@@ -457,15 +454,13 @@ function App() {
         } else {
           const dDate = new Date(t.created_at)
           dDate.setHours(0, 0, 0, 0)
-          const now = new Date()
-          now.setHours(0, 0, 0, 0)
+          const todayDate = new Date()
+          todayDate.setHours(0, 0, 0, 0)
           
-          if (dDate.getTime() === now.getTime()) {
+          if (dDate.getTime() === todayDate.getTime()) {
              dailyData[`${key}-active`] = (dailyData[`${key}-active`] || 0) + 1
-          } else if (dDate.getTime() < now.getTime()) {
+          } else if (dDate.getTime() < todayDate.getTime()) {
              dailyData[`${key}-backlog`] = (dailyData[`${key}-backlog`] || 0) + 1
-          } else {
-             dailyData[`${key}-future`] = (dailyData[`${key}-future`] || 0) + 1
           }
         }
       }
@@ -478,14 +473,42 @@ function App() {
       active: dailyData[`${d.key}-active`] || 0,
       backlog: dailyData[`${d.key}-backlog`] || 0,
       done: dailyData[`${d.key}-done`] || 0,
-      future: dailyData[`${d.key}-future`] || 0
+      future: 0
     }))
+  }, [tasks, analyticsTimeframe, user])
+
+  const analyticsSummary = useMemo(() => {
+    const now = new Date()
+    const startDate = new Date()
+    startDate.setHours(0, 0, 0, 0)
+
+    if (analyticsTimeframe === '7d') {
+      startDate.setDate(startDate.getDate() - 6)
+    } else if (analyticsTimeframe === '30d') {
+      startDate.setDate(startDate.getDate() - 29)
+    }
+
+    const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
+    
+    const relevantTasks = myTasks.filter(t => {
+      const d = new Date(t.created_at)
+      return d >= startDate && d <= now
+    })
+
+    const completed = relevantTasks.filter(t => t.is_completed).length
+    const total = relevantTasks.length
+
+    return {
+      total,
+      completed,
+      rate: total ? Math.round((completed / total) * 100) : 0
+    }
   }, [tasks, analyticsTimeframe, user])
 
   const completionData = useMemo(() => {
     const today = new Date().toLocaleDateString()
     
-    // 0. Filter tasks for analytics
+    // 0. Filter tasks for analytics (This is for the small pill bar graph)
     const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
     
     // 1. Done Tasks
@@ -884,12 +907,14 @@ function App() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="glass p-6 rounded-3xl border border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
-              <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest mb-1">{analyticsTimeframe === '7d' ? 'Weekly' : 'Monthly'} Flow</p>
-              <h3 className="text-3xl font-black text-white">{myTasks.length} <span className="text-sm font-medium text-muted-foreground">TASKS</span></h3>
+              <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest mb-1">
+                {analyticsTimeframe === 'today' ? 'Daily' : analyticsTimeframe === '7d' ? 'Weekly' : 'Monthly'} Flow
+              </p>
+              <h3 className="text-3xl font-black text-white px-1 leading-tight">{analyticsSummary.total} <span className="text-[10px] sm:text-sm font-medium text-muted-foreground block sm:inline">TASKS</span></h3>
             </div>
             <div className="glass p-6 rounded-3xl border border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
-              <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest mb-1">Completion Rate</p>
-              <h3 className="text-3xl font-black text-green-500">{myTasks.length ? Math.round((completedTasks/myTasks.length)*100) : 0}%</h3>
+              <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest mb-1">Completion</p>
+              <h3 className="text-3xl font-black text-green-500">{analyticsSummary.rate}%</h3>
             </div>
           </div>
 
@@ -1369,7 +1394,7 @@ function App() {
                   type="date"
                   value={scheduledDate}
                   onChange={(e) => setScheduledDate(e.target.value)}
-                  className="input-premium h-11 sm:h-14 text-xs px-4 sm:px-6 text-primary scheme-dark"
+                  className="input-premium h-10 sm:h-14 text-[10px] sm:text-xs px-3 sm:px-6 text-primary scheme-dark"
                 />
                 <p className="text-[8px] sm:text-[9px] text-white/20 italic px-4">Leave empty for today.</p>
               </div>
@@ -1549,60 +1574,60 @@ function App() {
               className="absolute inset-0 bg-[#0a0a0a]/80 backdrop-blur-xl"
             />
             
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-2xl glass-card border border-white/10 p-1 overflow-hidden"
-            >
-              <div className="bg-[#0a0a0a] rounded-[28px] p-8 space-y-8 max-h-[80vh] overflow-y-auto custom-scrollbar">
-                <div className="flex items-start justify-between gap-6">
-                  <div className="space-y-4 flex-1">
-                    <div className="flex items-center gap-3 text-primary">
-                      <ListTodo size={20} />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">
-                        {isEditingTask ? 'Editing Objective' : 'Objective Details'}
-                      </span>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.1 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-[calc(100%-32px)] sm:w-full max-w-2xl glass-card border border-white/10 p-1 overflow-hidden"
+              >
+                <div className="bg-[#0a0a0a] rounded-[28px] p-6 sm:p-8 space-y-6 sm:space-y-8 max-h-[85vh] overflow-y-auto custom-scrollbar overflow-x-hidden">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-3 flex-1 min-w-0">
+                      <div className="flex items-center gap-3 text-primary">
+                        <ListTodo size={18} />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                          {isEditingTask ? 'Editing Objective' : 'Objective Details'}
+                        </span>
+                      </div>
+                      
+                      {isEditingTask ? (
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-3 sm:p-4 text-xl sm:text-2xl font-black text-white focus:border-primary outline-none transition-all"
+                          placeholder="Objective title..."
+                        />
+                      ) : (
+                        <h2 className="text-2xl sm:text-4xl font-black text-white leading-tight break-words">
+                          {selectedTask.title}
+                        </h2>
+                      )}
                     </div>
                     
-                    {isEditingTask ? (
-                      <input
-                        type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-4 text-2xl font-black text-white focus:border-primary outline-none transition-all"
-                        placeholder="Objective title..."
-                      />
-                    ) : (
-                      <h2 className="text-4xl font-black text-white leading-tight break-words">
-                        {selectedTask.title}
-                      </h2>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {!isEditingTask && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {!isEditingTask && (
+                        <button 
+                          onClick={() => setIsEditingTask(true)}
+                          className="px-3 py-2 sm:px-4 sm:py-2 bg-primary/10 hover:bg-primary/20 rounded-xl transition-all text-primary border border-primary/20 flex items-center gap-2 font-black text-[9px] sm:text-[10px] tracking-widest"
+                        >
+                          <TrendingUp size={14} className="sm:size-4" />
+                          EDIT
+                        </button>
+                      )}
                       <button 
-                        onClick={() => setIsEditingTask(true)}
-                        className="px-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-xl transition-all text-primary border border-primary/20 flex items-center gap-2 font-black text-[10px] tracking-widest"
+                        onClick={() => {
+                          setSelectedTask(null)
+                          setIsEditingTask(false)
+                        }}
+                        className="p-2 sm:p-3 hover:bg-white/5 rounded-2xl transition-all text-white/30 hover:text-white border border-transparent hover:border-white/10"
                       >
-                        <TrendingUp size={16} />
-                        EDIT
+                        <X size={20} className="sm:size-6" />
                       </button>
-                    )}
-                    <button 
-                      onClick={() => {
-                        setSelectedTask(null)
-                        setIsEditingTask(false)
-                      }}
-                      className="p-3 hover:bg-white/5 rounded-2xl transition-all text-white/30 hover:text-white border border-transparent hover:border-white/10"
-                    >
-                      <X size={24} />
-                    </button>
+                    </div>
                   </div>
-                </div>
 
                 <div className="space-y-6">
                   <div className="p-6 bg-white/[0.02] rounded-3xl border border-white/5 space-y-4">
@@ -1676,11 +1701,11 @@ function App() {
                           </span>
                         </div>
                       )}
-                      {selectedTask.assignee_id === user?.id && selectedTask.user_id !== user?.id && (
+                      {selectedTask.assignee_id === user?.id && (
                         <div className="px-5 py-3 bg-purple-500/10 rounded-2xl border border-purple-500/20 flex items-center gap-3 text-purple-400">
                           <UserIcon size={16} />
                           <span className="text-xs font-bold uppercase tracking-widest truncate max-w-[150px]">
-                            Assigned by: {members.find(m => m.id === selectedTask.user_id)?.full_name || 'Operator'}
+                            Assigned by: {selectedTask.user_id === user?.id ? 'SELF' : (members.find(m => m.id === selectedTask.user_id)?.full_name || 'Operator')}
                           </span>
                         </div>
                       )}
