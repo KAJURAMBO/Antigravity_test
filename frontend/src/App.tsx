@@ -855,11 +855,11 @@ function App() {
           <div className="grid grid-cols-2 gap-4">
             <div className="glass p-6 rounded-3xl border border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
               <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest mb-1">{analyticsTimeframe === '7d' ? 'Weekly' : 'Monthly'} Flow</p>
-              <h3 className="text-3xl font-black text-white">{tasks.length} <span className="text-sm font-medium text-muted-foreground">TASKS</span></h3>
+              <h3 className="text-3xl font-black text-white">{myTasks.length} <span className="text-sm font-medium text-muted-foreground">TASKS</span></h3>
             </div>
             <div className="glass p-6 rounded-3xl border border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
               <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest mb-1">Completion Rate</p>
-              <h3 className="text-3xl font-black text-green-500">{tasks.length ? Math.round((completedTasks/tasks.length)*100) : 0}%</h3>
+              <h3 className="text-3xl font-black text-green-500">{myTasks.length ? Math.round((completedTasks/myTasks.length)*100) : 0}%</h3>
             </div>
           </div>
 
@@ -1223,19 +1223,18 @@ function App() {
                       className="absolute top-full left-0 right-0 mt-2 z-50 glass-card border border-white/10 p-2 overflow-hidden shadow-2xl"
                     >
                       <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-1">
-                        {tasks.filter(t => t.is_completed).length > 0 ? (
-                          tasks.filter(t => t.is_completed).map(t => (
-                            <button
-                              key={t.id}
+                        {myTasks.filter(t => t.is_completed).length > 0 ? (
+                          myTasks.filter(t => t.is_completed).map(t => (
+                            <div 
+                              key={t.id} 
                               onClick={() => {
                                 setSelectedTask(t)
                                 setOpenStatsDropdown(null)
                               }}
-                              className="w-full text-left p-3 hover:bg-white/5 rounded-xl transition-all group"
+                              className="group p-2 hover:bg-white/5 rounded-xl border border-transparent hover:border-white/5 transition-all text-left cursor-pointer"
                             >
-                              <p className="text-[10px] font-bold text-white/80 group-hover:text-green-500 truncate">{t.title}</p>
-                              <p className="text-[8px] text-white/30 uppercase tracking-tighter">View Success Log →</p>
-                            </button>
+                              <p className="text-[10px] font-bold text-white group-hover:text-green-400 transition-colors truncate">{t.title}</p>
+                            </div>
                           ))
                         ) : (
                           <p className="p-4 text-[10px] text-white/30 italic text-center">No missions completed 💎</p>
@@ -1465,7 +1464,7 @@ function App() {
               </div>
             )}
 
-            {tasks.length === 0 && (
+            {myTasks.length === 0 && listStatus !== 'delegated' && (
               <div className="text-center py-32 glass rounded-[40px] border border-white/5 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
                 <div className="relative space-y-6">
