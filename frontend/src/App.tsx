@@ -453,7 +453,7 @@ function App() {
 
     return [
       { name: 'Done', value: done, color: '#22c55e' },
-      { name: 'Active', value: activeToday, color: '#8b5cf6' },
+      { name: 'Active', value: activeToday, color: '#d946ef' },
       { name: 'Backlog', value: backlog, color: '#ef4444' },
       { name: 'Future', value: future, color: '#60a5fa' }
     ]
@@ -938,8 +938,8 @@ function App() {
                       <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="gradientActive" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#d946ef" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#d946ef" stopOpacity={0}/>
                     </linearGradient>
                     <linearGradient id="gradientDone" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
@@ -958,7 +958,7 @@ function App() {
                   />
                   <Area type="monotone" dataKey="backlog" stackId="1" stroke="#ef4444" fillOpacity={1} fill="url(#gradientBacklog)" strokeWidth={2} name="Backlog (Past)" />
                   <Area type="monotone" dataKey="done" stackId="1" stroke="#22c55e" fillOpacity={1} fill="url(#gradientDone)" strokeWidth={2} name="Completed" />
-                  <Area type="monotone" dataKey="active" stackId="1" stroke="#8b5cf6" fillOpacity={1} fill="url(#gradientActive)" strokeWidth={2} name="Active (Today)" />
+                  <Area type="monotone" dataKey="active" stackId="1" stroke="#d946ef" fillOpacity={1} fill="url(#gradientActive)" strokeWidth={2} name="Active (Today)" />
                   <Area type="monotone" dataKey="future" stackId="1" stroke="#60a5fa" fillOpacity={1} fill="url(#gradientFuture)" strokeWidth={2} name="Future (Upcoming)" />
                 </AreaChart>
               </ResponsiveContainer>
