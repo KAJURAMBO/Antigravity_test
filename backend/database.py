@@ -31,16 +31,20 @@ def smart_initialize_db():
         # First, ensure tables exist
         create_db_and_tables()
 
-        # Test if the new columns (e.g., bio) exist by performing a small query
+        # Test if the new columns (e.g., bio, assignee_id) exist
         with Session(engine) as session:
-            # We use text() to avoid SQLModel/SQLAlchemy cached schema issues
+            # Check user.bio (previous change)
             session.exec(text('SELECT bio FROM "user" LIMIT 1'))
+            # Check task.assignee_id (new change)
+            session.exec(text("SELECT assignee_id FROM task LIMIT 1"))
             print("Database schema verified. (Smart Initialization)")
 
     except ProgrammingError as e:
+        error_msg = str(e).lower()
         if (
-            "column user.bio does not exist" in str(e).lower()
-            or "undefinedcolumn" in str(e).lower()
+            "column user.bio does not exist" in error_msg
+            or "column task.assignee_id does not exist" in error_msg
+            or "undefinedcolumn" in error_msg
         ):
             print("Missing columns detected. Resetting database schema...")
             reset_db_and_tables()
