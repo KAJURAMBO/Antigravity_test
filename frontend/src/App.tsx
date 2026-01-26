@@ -117,6 +117,7 @@ function App() {
 
   // Dropdown Refs
   const statsDropdownRef = useRef<HTMLDivElement>(null)
+  const dropdownLockRef = useRef(false)
 
   // Cursor Tracking
   const mouseX = useMotionValue(0)
@@ -863,6 +864,10 @@ function App() {
                 <button 
                   onMouseDown={(e) => {
                     e.stopPropagation()
+                    if (dropdownLockRef.current) return
+                    dropdownLockRef.current = true
+                    setTimeout(() => dropdownLockRef.current = false, 300)
+                    
                     setListStatus('active')
                     setOpenStatsDropdown(openStatsDropdown === 'active' ? null : 'active')
                   }}
@@ -912,6 +917,10 @@ function App() {
                 <button 
                   onMouseDown={(e) => {
                     e.stopPropagation()
+                    if (dropdownLockRef.current) return
+                    dropdownLockRef.current = true
+                    setTimeout(() => dropdownLockRef.current = false, 300)
+                    
                     setListStatus('done')
                     setOpenStatsDropdown(openStatsDropdown === 'done' ? null : 'done')
                   }}
