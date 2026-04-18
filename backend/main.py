@@ -363,7 +363,7 @@ def create_task(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    db_task = Task.model_validate(task)
+    db_task = Task(**task.model_dump(exclude_unset=True))
     db_task.user_id = current_user.id
 
     # If no assignee, assign to self
