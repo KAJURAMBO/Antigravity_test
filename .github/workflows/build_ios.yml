@@ -22,14 +22,14 @@ jobs:
           cd mobile_app
           flutter pub get
 
-      - name: Build iOS
+      - name: Build iOS (Simulator)
         run: |
           cd mobile_app
-          # We use --no-codesign because we are building in a CI environment without a certificate
-          flutter build ios --no-codesign --release
+          # Building for simulator so it can run on Appetize.io / Simulator
+          flutter build ios --simulator --debug
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-build
-          path: mobile_app/build/ios/iphoneos/Runner.app
+          name: ios-simulator-build
+          path: mobile_app/build/ios/iphonesimulator/Runner.app
