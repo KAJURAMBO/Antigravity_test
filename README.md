@@ -41,16 +41,31 @@ flutter run
 
 ## 📲 Mobile Packaging
 
-### 🤖 Android (APK)
-To build a fresh installer for your Android phone, run:
+### 🤖 Android (Packaging & Icon Refresh)
+To refresh icons and build a clean release version for your phone:
 ```powershell
 # Navigate to mobile directory
 cd mobile_app
 
-# Build the Debug APK
+# 1. Clean and refresh dependencies
+flutter clean
+flutter pub get
+
+# 2. Update Launcher Icons (Android & iOS)
+dart run flutter_launcher_icons
+
+# 3. Choose your Build Type
+# RELEASE: Optimized, fast, and no "Debug" banner. Use for daily use.
+flutter build apk --release
+
+# DEBUG: Slower build, includes debugging tools and "Debug" banner. Use for development.
 flutter build apk --debug
 ```
-The file will be located at: `mobile_app/build/app/outputs/flutter-apk/app-debug.apk`
+- **Release APK**: Found at `mobile_app/build/app/outputs/flutter-apk/app-release.apk`
+- **Debug APK**: Found at `mobile_app/build/app/outputs/flutter-apk/app-debug.apk`
+
+> [!TIP]
+> **Why use Release?** Release mode is up to 10x faster and significantly smaller because it removes all discovery overhead and optimizes the code for the physical CPU.
 
 ### 🍏 iOS (Cloud Build)
 We have enabled **GitHub Actions** to build the iOS version for you in the cloud (no Mac required!).
