@@ -114,13 +114,21 @@ class _TeamTabState extends State<TeamTab> {
                           ),
                           title: Row(
                             children: [
-                              Text(member.fullName ?? 'Unknown', style: TextStyle(fontWeight: FontWeight.bold, color: theme.text)),
-                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  member.fullName ?? 'Unknown',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: theme.text),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                               if (member.id == user?.id)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: theme.primary.withOpacity(0.2), borderRadius: BorderRadius.circular(6)),
-                                  child: Text('YOU', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: theme.primary)),
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8.0),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(color: theme.primary.withOpacity(0.2), borderRadius: BorderRadius.circular(6)),
+                                    child: Text('YOU', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: theme.primary)),
+                                  ),
                                 ),
                             ],
                           ),

@@ -39,8 +39,9 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
 
     int totalTasks = tasks.length;
     int doneCount = tasks.where((t) => t.isCompleted).length;
-    int activeCount = tasks.where((t) => !t.isCompleted).length;
+    int activeCount = tasks.where((t) => !t.isCompleted && !DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day).isBefore(today) && !DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day).isAfter(today)).length;
     int backlogCount = allTasks.where((t) => !t.isCompleted && DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day).isBefore(today)).length;
+    int futureCount = allTasks.where((t) => !t.isCompleted && DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day).isAfter(today)).length;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -72,13 +73,21 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildStatCard('Total Tasks', totalTasks.toString(), Colors.blueAccent, theme, isFullWidth: true),
+            const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _buildStatCard('Total', totalTasks.toString(), Colors.blueAccent, theme)),
-                const SizedBox(width: 12),
                 Expanded(child: _buildStatCard('Done', doneCount.toString(), Colors.green, theme)),
                 const SizedBox(width: 12),
                 Expanded(child: _buildStatCard('Active', activeCount.toString(), Colors.orange, theme)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _buildStatCard('Backlog', backlogCount.toString(), Colors.redAccent, theme)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildStatCard('Future', futureCount.toString(), Colors.cyan, theme)),
               ],
             ),
             const SizedBox(height: 32),
@@ -91,7 +100,7 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
-                  maxY: (totalTasks == 0 ? 10 : totalTasks.toDouble() + 2),
+                  maxY: (totalTasks == 0 ? 10 : totalTasks.toDouble() + 5),
                   barTouchData: BarTouchData(enabled: true),
                   titlesData: FlTitlesData(
                     show: true,
@@ -100,7 +109,7 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
                         showTitles: true,
                         reservedSize: 40,
                         getTitlesWidget: (value, meta) {
-                          final style = TextStyle(color: theme.textDim, fontWeight: FontWeight.bold, fontSize: 12);
+                          final style = TextStyle(color: theme.textDim, fontWeight: FontWeight.bold, fontSize: 10);
                           Widget text;
                           switch (value.toInt()) {
                             case 0:
@@ -111,6 +120,9 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
                               break;
                             case 2:
                               text = Text('Backlog', style: style);
+                              break;
+                            case 3:
+                              text = Text('Future', style: style);
                               break;
                             default:
                               text = const Text('');
@@ -129,15 +141,19 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
                   barGroups: [
                     BarChartGroupData(
                       x: 0,
-                      barRods: [BarChartRodData(toY: activeCount.toDouble(), color: Colors.orange, width: 22, borderRadius: BorderRadius.circular(4))],
+                      barRods: [BarChartRodData(toY: activeCount.toDouble(), color: Colors.orange, width: 18, borderRadius: BorderRadius.circular(4))],
                     ),
                     BarChartGroupData(
                       x: 1,
-                      barRods: [BarChartRodData(toY: doneCount.toDouble(), color: Colors.green, width: 22, borderRadius: BorderRadius.circular(4))],
+                      barRods: [BarChartRodData(toY: doneCount.toDouble(), color: Colors.green, width: 18, borderRadius: BorderRadius.circular(4))],
                     ),
                     BarChartGroupData(
                       x: 2,
-                      barRods: [BarChartRodData(toY: backlogCount.toDouble(), color: Colors.redAccent, width: 22, borderRadius: BorderRadius.circular(4))],
+                      barRods: [BarChartRodData(toY: backlogCount.toDouble(), color: Colors.redAccent, width: 18, borderRadius: BorderRadius.circular(4))],
+                    ),
+                    BarChartGroupData(
+                      x: 3,
+                      barRods: [BarChartRodData(toY: futureCount.toDouble(), color: Colors.cyan, width: 18, borderRadius: BorderRadius.circular(4))],
                     ),
                   ],
                 ),
@@ -151,9 +167,10 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, Color color, AppThemeColors theme) {
+  Widget _buildStatCard(String title, String value, Color color, AppThemeColors theme, {bool isFullWidth = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      width: isFullWidth ? double.infinity : null,
+      padding: EdgeInsets.symmetric(vertical: isFullWidth ? 24 : 20),
       decoration: BoxDecoration(color: theme.card, borderRadius: BorderRadius.circular(16), border: Border.all(color: theme.divider)),
       child: Column(
         children: [

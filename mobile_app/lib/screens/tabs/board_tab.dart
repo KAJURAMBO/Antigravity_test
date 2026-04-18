@@ -119,9 +119,16 @@ class _BoardTabState extends State<BoardTab> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<int>(
-                        value: (selectedAssignee == null || members.any((m) => m.id == selectedAssignee)) 
-                               ? selectedAssignee 
-                               : null,
+                        value: () {
+                          final currentUserId = context.read<ApiService>().user?.id;
+                          if (selectedAssignee == null || selectedAssignee == currentUserId) {
+                            return null;
+                          }
+                          if (members.any((m) => m.id == selectedAssignee)) {
+                            return selectedAssignee;
+                          }
+                          return null;
+                        }(),
                         dropdownColor: theme.card,
                         style: TextStyle(color: theme.text),
                         decoration: InputDecoration(
@@ -133,7 +140,9 @@ class _BoardTabState extends State<BoardTab> {
                         ),
                         items: [
                           const DropdownMenuItem<int>(value: null, child: Text('Myself')),
-                          ...members.map((m) => DropdownMenuItem(value: m.id, child: Text(m.fullName ?? m.email))),
+                          ...members
+                              .where((m) => m.id != context.read<ApiService>().user?.id)
+                              .map((m) => DropdownMenuItem(value: m.id, child: Text(m.fullName ?? m.email))),
                         ],
                         onChanged: (val) => setModalState(() => selectedAssignee = val),
                       ),
