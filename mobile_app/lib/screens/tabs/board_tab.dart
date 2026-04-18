@@ -55,13 +55,14 @@ class _BoardTabState extends State<BoardTab> {
           final members = context.read<ApiService>().members;
 
           return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(isEditing ? 'Edit Mission' : 'Create New Mission', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.text)),
-                const SizedBox(height: 24),
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 24, left: 24, right: 24, top: 24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(isEditing ? 'Edit Mission' : 'Create New Mission', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.text)),
+                  const SizedBox(height: 24),
                 TextField(
                   controller: titleController,
                   autofocus: !isEditing,
@@ -176,7 +177,8 @@ class _BoardTabState extends State<BoardTab> {
                 const SizedBox(height: 32),
               ],
             ),
-          );
+          ),
+        );
         },
       ),
     );
