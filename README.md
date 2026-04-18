@@ -39,6 +39,27 @@ flutter emulators --launch Medium_Phone_API_36.1
 flutter run
 ```
 
+## 📲 Mobile Packaging
+
+### 🤖 Android (APK)
+To build a fresh installer for your Android phone, run:
+```powershell
+# Navigate to mobile directory
+cd mobile_app
+
+# Build the Debug APK
+flutter build apk --debug
+```
+The file will be located at: `mobile_app/build/app/outputs/flutter-apk/app-debug.apk`
+
+### 🍏 iOS (Cloud Build)
+We have enabled **GitHub Actions** to build the iOS version for you in the cloud (no Mac required!).
+1. Go to your GitHub repository.
+2. Click on the **"Actions"** tab.
+3. Select the **"Build iOS App"** workflow.
+4. Download the latest **"ios-simulator-build"** artifact from the bottom of the successful run page.
+5. Upload this zip to **[Appetize.io](https://appetize.io)** to test it in your browser!
+
 ### 🧪 Local Testing (Developer Access)
 To test instantly without Google login:
 - On Web/Mobile Login, enter any username (e.g. `agent_alpha`) in the **Dev Auth** field.
