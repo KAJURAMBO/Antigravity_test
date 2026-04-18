@@ -306,10 +306,17 @@ class _BoardTabState extends State<BoardTab> {
             ),
           ),
           Expanded(
-            child: apiService.isLoading
-                ? Center(child: CircularProgressIndicator(color: theme.primary))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await apiService.fetchTasks();
+                await apiService.fetchMembers();
+              },
+              color: theme.primary,
+              child: apiService.isLoading
+                  ? Center(child: CircularProgressIndicator(color: theme.primary))
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
                     itemCount: filteredTasks.length,
                     itemBuilder: (context, index) {
                       final task = filteredTasks[index];
@@ -430,6 +437,7 @@ class _BoardTabState extends State<BoardTab> {
                       );
                     },
                   ),
+            ),
           ),
         ],
       ),

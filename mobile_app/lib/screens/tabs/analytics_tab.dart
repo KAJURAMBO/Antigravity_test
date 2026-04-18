@@ -68,8 +68,11 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
           const SizedBox(width: 16),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: RefreshIndicator(
+        onRefresh: () async => await apiService.fetchTasks(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -164,7 +167,8 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildStatCard(String title, String value, Color color, AppThemeColors theme, {bool isFullWidth = false}) {

@@ -88,10 +88,19 @@ class _TeamTabState extends State<TeamTab> {
             ),
           ),
           Expanded(
-            child: members.isEmpty
-                ? Center(child: Text("No team members found.", style: TextStyle(color: theme.textDim)))
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: RefreshIndicator(
+              onRefresh: () async => await context.read<ApiService>().fetchMembers(),
+              color: theme.primary,
+              child: members.isEmpty
+                  ? Stack(
+                      children: [
+                        ListView(physics: const AlwaysScrollableScrollPhysics()),
+                        Center(child: Text("No team members found.", style: TextStyle(color: theme.textDim))),
+                      ],
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: members.length,
                     itemBuilder: (context, index) {
                       final member = members[index];
@@ -142,6 +151,7 @@ class _TeamTabState extends State<TeamTab> {
                       );
                     },
                   ),
+            ),
           ),
         ],
       ),

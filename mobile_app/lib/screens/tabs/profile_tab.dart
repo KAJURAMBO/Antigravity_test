@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 import '../../providers/theme_provider.dart';
 
@@ -41,7 +42,43 @@ class _ProfileTabState extends State<ProfileTab> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundColor: theme.primary.withOpacity(0.1),
+                          backgroundImage: context.watch<ApiService>().user?.picture != null 
+                              ? NetworkImage(context.watch<ApiService>().user!.picture!) 
+                              : null,
+                          child: context.watch<ApiService>().user?.picture == null
+                              ? Icon(Icons.person, size: 50, color: theme.primary)
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: GestureDetector(
+                            onTap: () async {
+                              final picker = ImagePicker();
+                              final image = await picker.pickImage(source: ImageSource.gallery);
+                              if (image != null) {
+                                await context.read<ApiService>().uploadProfileImage(image.path);
+                                setModalState(() {});
+                              }
+                            },
+                            child: CircleAvatar(
+                              radius: 18,
+                              backgroundColor: theme.primary,
+                              child: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
                 TextField(
                   controller: nameController,
                   autofocus: true,
@@ -123,8 +160,11 @@ class _ProfileTabState extends State<ProfileTab> {
           )
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      body: RefreshIndicator(
+        onRefresh: () async => await apiService.fetchUserProfile(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(24),
         child: Column(
           children: [
             CircleAvatar(
@@ -177,7 +217,8 @@ class _ProfileTabState extends State<ProfileTab> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildField(String label, String value, AppThemeColors theme) {

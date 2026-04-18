@@ -236,6 +236,31 @@ class ApiService extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> uploadProfileImage(String filePath) async {
+    if (!isAuthenticated) return false;
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse("${AppConfig.baseUrl}/users/me/picture"),
+      );
+      request.headers.addAll({
+        if (_token != null) "Authorization": "Bearer $_token",
+      });
+      request.files.add(await http.MultipartFile.fromPath('file', filePath));
+      
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        await fetchUserProfile();
+        return true;
+      }
+    } catch (e) {
+      debugPrint("Upload Image Error: $e");
+    }
+    return false;
+  }
+
   Future<void> logout() async {
     _token = null;
     _user = null;
