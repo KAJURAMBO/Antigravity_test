@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'screens/login_screen.dart';
+import 'screens/dashboard_screen.dart';
 import 'services/api_service.dart';
 
 void main() {
@@ -37,7 +38,12 @@ class MyApp extends StatelessWidget {
           (themeProvider.isDark ? ThemeData.dark() : ThemeData.light()).textTheme,
         ),
       ),
-      home: LoginScreen(),
+      home: Consumer<ApiService>(
+        builder: (context, api, _) {
+          if (api.isAuthenticated) return const DashboardScreen();
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }

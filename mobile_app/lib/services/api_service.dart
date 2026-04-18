@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../config.dart';
 import '../models/task.model.dart';
 import '../models/user.model.dart';
@@ -12,6 +13,9 @@ class ApiService extends ChangeNotifier {
   bool _isLoading = false;
   String? _token;
   UserModel? _user;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: '1060605959840-f76ettkbg62idbr4s03lv22bp0hesu7f.apps.googleusercontent.com',
+  );
 
   List<TaskModel> get tasks => _tasks;
   List<MemberModel> get members => _members;
@@ -69,6 +73,54 @@ class ApiService extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> loginWithGoogle() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final response = await http.post(
+        Uri.parse("${AppConfig.baseUrl}/auth/google"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"token": idToken}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _token = data['access_token'];
+        _user = UserModel.fromJson(data['user']);
+        
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('auth_token', _token!);
+
+        await fetchTasks();
+        await fetchMembers();
+        return true;
+      }
+    } catch (e) {
+      debugPrint("Google Login Error: $e");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+    return false;
+  }
+
   Future<void> fetchUserProfile() async {
     if (!isAuthenticated) return;
     try {
@@ -81,10 +133,10 @@ class ApiService extends ChangeNotifier {
         await fetchTasks();
         await fetchMembers();
       } else {
-        logout();
+        await logout();
       }
     } catch (e) {
-      logout();
+      await logout();
     }
   }
 
@@ -268,6 +320,9 @@ class ApiService extends ChangeNotifier {
     _members = [];
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
     notifyListeners();
   }
 }

@@ -94,9 +94,55 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: theme.divider)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('OR', style: TextStyle(color: theme.textDim, fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                  Expanded(child: Divider(color: theme.divider)),
+                ],
+              ),
+              SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: OutlinedButton.icon(
+                  onPressed: apiService.isLoading
+                      ? null
+                      : () async {
+                          final success = await apiService.loginWithGoogle();
+                          if (success && mounted) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                            );
+                          } else if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Google Sign-In failed. Check configuration!')),
+                            );
+                          }
+                        },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: theme.divider),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  icon: SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: Image.network(
+                      'https://www.gstatic.com/images/branding/product/2x/googleg_64dp.png',
+                      errorBuilder: (context, error, stackTrace) => Icon(Icons.g_mobiledata, color: theme.primary, size: 32),
+                    ),
+                  ),
+                  label: Text('Sign in with Google', style: TextStyle(color: theme.text, fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              SizedBox(height: 24),
               Text(
-                'Using Dev Auth Mode',
-                style: TextStyle(fontSize: 12, color: Colors.blueGrey),
+                'Professional Account Access',
+                style: TextStyle(fontSize: 12, color: theme.textDim, fontWeight: FontWeight.bold),
               ),
             ],
           ),

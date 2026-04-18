@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../models/task.model.dart';
 import '../../providers/theme_provider.dart';
@@ -139,8 +140,9 @@ class _BoardTabState extends State<BoardTab> {
                           }
                           return null;
                         }(),
+                        isExpanded: true,
                         dropdownColor: theme.card,
-                        style: TextStyle(color: theme.text),
+                        style: TextStyle(color: theme.text, overflow: TextOverflow.ellipsis),
                         decoration: InputDecoration(
                           labelText: 'Assign To',
                           labelStyle: TextStyle(color: theme.textDim),
@@ -208,36 +210,38 @@ class _BoardTabState extends State<BoardTab> {
       } else {
         if (!isAssignedToMe) return false;
 
+        final localDate = t.createdAt.toLocal();
+        final taskDateOnly = DateTime(localDate.year, localDate.month, localDate.day);
+
         if (_listStatus == 'future') {
-          final d = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
-          return d.isAfter(today) && !t.isCompleted;
+          return taskDateOnly.isAfter(today) && !t.isCompleted;
         }
 
         if (_listStatus == 'backlog') {
-          final d = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
-          if (!d.isBefore(today)) return false;
+          if (!taskDateOnly.isBefore(today)) return false;
           return !t.isCompleted;
         }
 
         if (_listStatus == 'active') {
           if (t.isCompleted) return false;
-          final d = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
-          if (d.isBefore(today)) return false;
+          if (taskDateOnly.isBefore(today)) return false;
         }
 
         if (_listStatus == 'done' && !t.isCompleted) return false;
       }
 
-      final taskDate = DateTime(t.createdAt.year, t.createdAt.month, t.createdAt.day);
+      final localDate = t.createdAt.toLocal();
+      final taskDateOnly = DateTime(localDate.year, localDate.month, localDate.day);
+
       if (_listTimeframe == 'today') {
-        if (_listStatus == 'done' && taskDate.isAfter(today)) return true;
-        return taskDate == today;
+        if (_listStatus == 'done' && taskDateOnly.isAfter(today)) return true;
+        return taskDateOnly == today;
       } else if (_listTimeframe == '7d') {
-        final diff = today.difference(taskDate).inDays;
+        final diff = today.difference(taskDateOnly).inDays;
         if (_listStatus == 'delegated') return diff.abs() <= 7;
         return diff >= 0 && diff <= 7;
       } else if (_listTimeframe == '30d') {
-        final diff = today.difference(taskDate).inDays;
+        final diff = today.difference(taskDateOnly).inDays;
         if (_listStatus == 'delegated') return diff.abs() <= 30;
         return diff >= 0 && diff <= 30;
       }
@@ -379,7 +383,7 @@ class _BoardTabState extends State<BoardTab> {
                                       children: [
                                         _buildPill(
                                           icon: Icons.calendar_today,
-                                          text: "${task.createdAt.month}/${task.createdAt.day}",
+                                          text: DateFormat('MMM d, h:mm a').format(task.createdAt.toLocal()),
                                           color: theme.divider,
                                           textColor: theme.textDim,
                                           theme: theme,
