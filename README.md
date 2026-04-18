@@ -15,22 +15,34 @@ A full-stack, Full-Cloud premium To-Do application with real-time analytics and 
 - **Frontend:** React, Tailwind CSS v4, Framer Motion, Recharts
 - **Hosting:** Render.com
 
-## 🚀 One-Step Startup (Local)
+## 🚀 Getting Started (Local)
 
-If you want to run this locally using the cloud database:
+### 1️⃣ Start the Core (Backend & Web)
+This command launches both the FastAPI server and the React dashboard simultaneously using the cloud database.
 
 ```powershell
-# From root directory
+# From the root directory
 .\run.ps1
 ```
 
-### 🧪 Local Testing (Multi-Profile)
+### 2️⃣ Start the Mobile Experience (Flutter)
+Ensure the Backend is running first, then launch the native app in your emulator.
 
-To test the application locally without Google login:
+```powershell
+# 1. Open a new terminal and navigate to mobile
+cd mobile_app
 
-1. Run the app using the command above.
-2. Scroll to the **"Developer Access"** section at the bottom of the login screen.
-3. Enter `alpha` (or any name) and press **Enter** to instantly log in to a unique test profile.
+# 2. Launch your Android Emulator
+flutter emulators --launch Medium_Phone_API_36.1
+
+# 3. Launch the App
+flutter run
+```
+
+### 🧪 Local Testing (Developer Access)
+To test instantly without Google login:
+- On Web/Mobile Login, enter any username (e.g. `agent_alpha`) in the **Dev Auth** field.
+- This creates a unique persistent profile for that name immediately.
 
 ## ✨ Premium Features
 
