@@ -25,13 +25,23 @@ class _ProfileTabState extends State<ProfileTab> {
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
           return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Edit Profile Data', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.text)),
-                const SizedBox(height: 24),
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 24, left: 24, right: 24, top: 24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Edit Profile Data', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.text)),
+                      IconButton(
+                        icon: Icon(Icons.close, color: theme.textDim),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                 TextField(
                   controller: nameController,
                   autofocus: true,
@@ -82,7 +92,8 @@ class _ProfileTabState extends State<ProfileTab> {
                 const SizedBox(height: 32),
               ],
             ),
-          );
+          ),
+        );
         },
       ),
     );

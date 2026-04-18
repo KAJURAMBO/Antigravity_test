@@ -61,8 +61,17 @@ class _BoardTabState extends State<BoardTab> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(isEditing ? 'Edit Mission' : 'Create New Mission', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.text)),
-                  const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(isEditing ? 'Edit Mission' : 'Create New Mission', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.text)),
+                    IconButton(
+                      icon: Icon(Icons.close, color: theme.textDim),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 TextField(
                   controller: titleController,
                   autofocus: !isEditing,
