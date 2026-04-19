@@ -16,6 +16,7 @@ class ApiService extends ChangeNotifier {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     serverClientId: '1060605959840-f76ettkbg62idbr4s03lv22bp0hesu7f.apps.googleusercontent.com',
     clientId: '1060605959840-0bbrdem82hpufeij1fr3be9v3vn5olbl.apps.googleusercontent.com',
+    scopes: ['email', 'profile'],
   );
 
   List<TaskModel> get tasks => _tasks;

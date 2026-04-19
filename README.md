@@ -145,9 +145,10 @@ To ensure Google Sign-In works perfectly across all environments without relying
 2. **Android Client (Debug)**: Contains your local `debug.keystore` SHA-1. Allows login during standard `flutter run`.
 3. **Android Client (Release)**: Contains your `release-key.jks` SHA-1. Allows login when testing native release builds (`flutter run --release`).
 4. **Android Client (Play Store)**: Contains the App Signing SHA-1 provided by the **Google Play Console**. Allows users who downloaded the app from the store to log in.
+5. **iOS Client**: Contains your iOS App Bundle ID. The generated Client ID is stored alongside a Custom URL Scheme in `Info.plist` to allow simulator and native device login.
 
 > [!NOTE]
-> The Flutter app only stores the **Web Client ID**. Google automatically handles the Android Client validation behind the scenes by comparing the app's physical signature against the list of Android Client SHA-1s in your Cloud account!
+> For Android, the Flutter app only stores the **Web Client ID**. Google automatically handles Android Client validation behind the scenes by comparing the app's physical signature! The iOS app explicitly stores its dedicated Client ID to trigger the Safari OAuth popup.
 
 ### 📜 Legal & Compliance Links
 
