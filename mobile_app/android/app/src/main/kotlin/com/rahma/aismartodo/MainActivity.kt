@@ -1,4 +1,4 @@
-package com.example.mobile_app
+package com.rahma.aismartodo
 
 import io.flutter.embedding.android.FlutterActivity
 

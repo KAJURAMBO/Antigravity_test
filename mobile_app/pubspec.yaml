@@ -1,7 +1,7 @@
 name: mobile_app
 description: "A premium To-Do application built with Flutter."
 publish_to: "none"
-version: 1.0.0+1
+version: 1.0.2+3
 
 environment:
   sdk: ">=3.2.0 <4.0.0"
@@ -17,6 +17,8 @@ dependencies:
   shared_preferences: ^2.5.5
   image_picker: ^1.2.1
   google_sign_in: ^6.2.1
+  firebase_core: ^3.1.1
+  firebase_analytics: ^11.1.1
 
 dev_dependencies:
   flutter_test:

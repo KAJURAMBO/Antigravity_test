@@ -53,19 +53,38 @@ flutter pub get
 
 # 2. Update Launcher Icons (Android & iOS)
 dart run flutter_launcher_icons
+```
 
-# 3. Choose your Build Type
-# RELEASE: Optimized, fast, and no "Debug" banner. Use for daily use.
+#### 📦 APK — Install directly on a device/emulator
+```powershell
+# RELEASE APK: Optimized, no "Debug" banner. Use for sharing/side-loading.
 flutter build apk --release
 
-# DEBUG: Slower build, includes debugging tools and "Debug" banner. Use for development.
+# DEBUG APK: Slower, includes debug tools. Use for development only.
 flutter build apk --debug
 ```
-- **Release APK**: Found at `mobile_app/build/app/outputs/flutter-apk/app-release.apk`
-- **Debug APK**: Found at `mobile_app/build/app/outputs/flutter-apk/app-debug.apk`
+- **Release APK**: `mobile_app/build/app/outputs/flutter-apk/app-release.apk`
+- **Debug APK**: `mobile_app/build/app/outputs/flutter-apk/app-debug.apk`
+
+#### 🏪 AAB — Upload to Google Play Store
+```powershell
+# RELEASE AAB: Required format for Google Play Store submission.
+flutter build appbundle --release
+
+# DEBUG AAB: For testing purposes only (NOT accepted by Play Store).
+flutter build appbundle --debug
+```
+- **Release AAB**: `mobile_app/build/app/outputs/bundle/release/app-release.aab`
+- **Debug AAB**: `mobile_app/build/app/outputs/bundle/debug/app-debug.aab`
 
 > [!TIP]
-> **Why use Release?** Release mode is up to 10x faster and significantly smaller because it removes all discovery overhead and optimizes the code for the physical CPU.
+> **APK vs AAB?**
+> - Use **APK** to install directly on a phone or emulator (side-loading).
+> - Use **AAB** (Android App Bundle) to publish on the **Google Play Store** — it's smaller and optimized per device. Play Store does NOT accept APK files anymore.
+
+> [!IMPORTANT]
+> **Release signing is required for Play Store.** The release keystore (`release-key.jks`) and `key.properties` must exist in `android/app/` and `android/` respectively. Never commit these files to Git.
+
 
 ### 🍏 iOS (Cloud Build)
 We have enabled **GitHub Actions** to build the iOS version for you in the cloud (no Mac required!).
@@ -79,6 +98,17 @@ We have enabled **GitHub Actions** to build the iOS version for you in the cloud
 To test instantly without Google login:
 - On Web/Mobile Login, enter any username (e.g. `agent_alpha`) in the **Dev Auth** field.
 - This creates a unique persistent profile for that name immediately.
+
+### 🔐 Google Sign-In & OAuth Setup
+To ensure Google Sign-In works perfectly across all environments without relying on the Firebase SDK, the project uses direct Google Cloud OAuth. In your Google Cloud Console (**APIs & Services > Credentials**), you must maintain these 4 Client IDs:
+
+1. **Web Client 1**: This ID is hardcoded in the Flutter source code (`serverClientId`). It tells Google *where* the request originated.
+2. **Android Client (Debug)**: Contains your local `debug.keystore` SHA-1. Allows login during standard `flutter run`.
+3. **Android Client (Release)**: Contains your `release-key.jks` SHA-1. Allows login when testing native release builds (`flutter run --release`).
+4. **Android Client (Play Store)**: Contains the App Signing SHA-1 provided by the **Google Play Console**. Allows users who downloaded the app from the store to log in.
+
+> [!NOTE]
+> The Flutter app only stores the **Web Client ID**. Google automatically handles the Android Client validation behind the scenes by comparing the app's physical signature against the list of Android Client SHA-1s in your Cloud account!
 
 ## ✨ Premium Features
 
