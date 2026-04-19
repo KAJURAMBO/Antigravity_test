@@ -137,6 +137,23 @@ To test instantly without Google login:
 - On Web/Mobile Login, enter any username (e.g. `agent_alpha`) in the **Dev Auth** field.
 - This creates a unique persistent profile for that name immediately.
 
+### 🤖 Testing the AI API Endpoints (Gemini 2.5 Flash)
+
+The backend features `gemini-2.5-flash-lite` integration. To test it manually from the browser:
+
+1. Log in to the web application normally.
+2. Open your browser's Developer Console (`F12` → **Console** tab).
+3. If you see a warning, type `allow pasting` and press Enter.
+4. Paste the following snippet to test the natural language task parser:
+   ```javascript
+   const token = localStorage.getItem('token');
+   fetch('http://localhost:8000/ai/parse-task', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+     body: JSON.stringify({ message: "wash clothes tomorrow" })
+   }).then(r => r.json()).then(console.log);
+   ```
+
 ### 🧹 Troubleshooting: Duplicate Apps on Emulator
 
 If you see two app icons on your emulator after a package name change, uninstall the old one:

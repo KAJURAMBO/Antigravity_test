@@ -48,6 +48,12 @@ def smart_initialize_db():
             print("Missing 'assignee_id' in task table. Resetting database...")
             reset_db_and_tables()
             return
+            
+        if "ai_guidance" not in task_columns:
+            print("Missing 'ai_guidance' in task table. Adding it gracefully...")
+            with Session(engine) as tmp_session:
+                tmp_session.execute(text("ALTER TABLE task ADD COLUMN ai_guidance VARCHAR"))
+                tmp_session.commit()
 
         # Check for new columns in User
         user_columns = [c["name"] for c in inspector.get_columns("user")]

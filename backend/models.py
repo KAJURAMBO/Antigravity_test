@@ -62,6 +62,7 @@ class TaskBase(SQLModel):
     description: Optional[str] = None
     is_completed: bool = False
     assignee_id: Optional[int] = None
+    ai_guidance: Optional[str] = None
 
 
 class Task(TaskBase, table=True):
@@ -102,6 +103,7 @@ class TaskUpdate(SQLModel):
     is_completed: Optional[bool] = None
     created_at: Optional[datetime] = None
     assignee_id: Optional[int] = None
+    ai_guidance: Optional[str] = None
 
 
 class UserUpdate(SQLModel):

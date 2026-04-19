@@ -443,3 +443,102 @@ def delete_task(
     session.delete(task)
     session.commit()
     return None
+
+
+# === AI-Powered Endpoints ===
+
+from .ai_service import parse_task_from_text, get_task_guidance, refine_task_guidance
+
+
+class AIParseRequest(BaseModel):
+    message: str
+    conversation_history: list = []  # For multi-turn clarification
+
+
+class AIRefineRequest(BaseModel):
+    previous_guidance: str
+    user_feedback: str
+
+
+@app.post("/ai/parse-task")
+async def ai_parse_task(
+    request: AIParseRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Parse natural language into structured task data using Gemini AI."""
+    try:
+        result = await parse_task_from_text(
+            user_message=request.message,
+            conversation_history=request.conversation_history or None,
+        )
+        return result
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        print(f"AI Parse Error: {e}")
+        raise HTTPException(status_code=500, detail="AI service temporarily unavailable")
+
+
+@app.get("/ai/task-guidance/{task_id}")
+async def ai_task_guidance(
+    task_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Get AI-generated step-by-step guidance for completing a task. Return cached if exists."""
+    task = session.get(Task, task_id)
+    if not task or (
+        task.user_id != current_user.id and task.assignee_id != current_user.id
+    ):
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task.ai_guidance:
+        return {"task_id": task_id, "guidance": task.ai_guidance}
+
+    try:
+        guidance = await get_task_guidance(
+            task_title=task.title,
+            task_description=task.description,
+        )
+        task.ai_guidance = guidance
+        session.add(task)
+        session.commit()
+        return {"task_id": task_id, "guidance": guidance}
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        print(f"AI Guidance Error: {e}")
+        raise HTTPException(status_code=500, detail="AI service temporarily unavailable")
+
+
+@app.post("/ai/task-guidance/{task_id}/refine")
+async def ai_refine_guidance(
+    task_id: int,
+    request: AIRefineRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Refine previously generated task guidance based on user feedback."""
+    task = session.get(Task, task_id)
+    if not task or (
+        task.user_id != current_user.id and task.assignee_id != current_user.id
+    ):
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    try:
+        refined = await refine_task_guidance(
+            task_title=task.title,
+            task_description=task.description,
+            previous_guidance=request.previous_guidance,
+            user_feedback=request.user_feedback,
+        )
+        task.ai_guidance = refined
+        session.add(task)
+        session.commit()
+        return {"task_id": task_id, "guidance": refined}
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        print(f"AI Refine Error: {e}")
+        raise HTTPException(status_code=500, detail="AI service temporarily unavailable")
+

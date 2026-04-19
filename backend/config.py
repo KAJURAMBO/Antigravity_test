@@ -25,5 +25,8 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: Optional[str] = None
     CLOUDINARY_API_SECRET: Optional[str] = None
 
+    # Gemini AI
+    GEMINI_API_KEY: Optional[str] = None
+
 
 settings = Settings()

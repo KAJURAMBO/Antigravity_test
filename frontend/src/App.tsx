@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon, X, Settings } from 'lucide-react'
+import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon, X, Settings, Sparkles, Bot, Send, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { 
   AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -17,6 +17,7 @@ interface Task {
   updated_at: string | null
   user_id: number
   assignee_id?: number | null
+  ai_guidance?: string | null
 }
 
 interface UserProfile {
@@ -141,6 +142,17 @@ function App() {
   const statsDropdownRef = useRef<HTMLDivElement>(null)
   const dropdownLockRef = useRef(false)
 
+  // AI Parse State
+  const [showAiParseModal, setShowAiParseModal] = useState(false)
+  const [aiParseInput, setAiParseInput] = useState('')
+  const [aiParseHistory, setAiParseHistory] = useState<{role: 'user' | 'model', text: string}[]>([])
+  const [aiParseLoading, setAiParseLoading] = useState(false)
+
+  // AI Guidance State
+  const [aiGuidance, setAiGuidance] = useState('')
+  const [aiGuidanceLoading, setAiGuidanceLoading] = useState(false)
+  const [aiRefineInput, setAiRefineInput] = useState('')
+
   // Cursor Tracking
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
@@ -252,6 +264,7 @@ function App() {
       setEditDate(new Date(selectedTask.created_at).toISOString().split('T')[0])
       setEditAssigneeId(selectedTask.assignee_id || '')
       setIsEditingTask(false)
+      setAiGuidance(selectedTask.ai_guidance || '')
     }
   }, [selectedTask])
 
@@ -363,6 +376,82 @@ function App() {
       setTasks(tasks.filter(t => t.id !== id))
     } catch (error) {
       console.error('Error deleting task:', error)
+    }
+  }
+
+  // --- AI Handlers ---
+  const handleAiParseSubmit = async () => {
+    if (!aiParseInput.trim()) return
+    
+    // Add user message to history
+    const inputMessageText = aiParseInput
+    setAiParseHistory(prev => [...prev, {role: 'user', text: inputMessageText}])
+    setAiParseInput('')
+    setAiParseLoading(true)
+
+    try {
+      const data = await apiFetch('/ai/parse-task', {
+        method: 'POST',
+        body: JSON.stringify({
+          message: inputMessageText,
+          conversation_history: aiParseHistory
+        })
+      })
+
+      if (data.needs_clarification) {
+        setAiParseHistory(prev => [...prev, {role: 'model', text: data.clarification_question}])
+      } else {
+        // Success! Fill the standard form and close modal
+        setNewTask(data.title)
+        if (data.description) setNewDescription(data.description)
+        if (data.date) setScheduledDate(data.date)
+        
+        setShowAiParseModal(false)
+        setAiParseHistory([])
+        showToast('Objective parsed successfully! 🪄')
+      }
+    } catch (error) {
+      console.error('AI Parse error:', error)
+      showToast('AI service temporarily unavailable.', 'error')
+    } finally {
+      setAiParseLoading(false)
+    }
+  }
+
+  const handleAiGuidance = async () => {
+    if (!selectedTask) return
+    setAiGuidanceLoading(true)
+    try {
+      const data = await apiFetch(`/ai/task-guidance/${selectedTask.id}`)
+      setAiGuidance(data.guidance)
+    } catch (error) {
+      console.error('AI Guidance error:', error)
+      showToast('AI service temporarily unavailable.', 'error')
+    } finally {
+      setAiGuidanceLoading(false)
+    }
+  }
+
+  const handleAiRefineSubmit = async () => {
+    if (!selectedTask || !aiRefineInput.trim() || !aiGuidance) return
+    const feedback = aiRefineInput
+    setAiRefineInput('')
+    setAiGuidanceLoading(true)
+    
+    try {
+      const data = await apiFetch(`/ai/task-guidance/${selectedTask.id}/refine`, {
+        method: 'POST',
+        body: JSON.stringify({
+          previous_guidance: aiGuidance,
+          user_feedback: feedback
+        })
+      })
+      setAiGuidance(data.guidance)
+    } catch (error) {
+      console.error('AI Refine error:', error)
+      showToast('AI service temporarily unavailable.', 'error')
+    } finally {
+      setAiGuidanceLoading(false)
     }
   }
 
@@ -1358,9 +1447,17 @@ function App() {
 
           <div className="glass p-8 rounded-[32px] shadow-2xl relative overflow-hidden border border-white/5">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[80px] rounded-full pointer-events-none" />
-            <h2 className="text-2xl font-black text-white mb-8 flex items-center gap-3">
-              Add Task <span className="opacity-50">🚀</span>
-            </h2>
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                Add Task <span className="opacity-50">🚀</span>
+              </h2>
+              <button
+                onClick={() => setShowAiParseModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20 hover:from-purple-500/30 hover:to-blue-500/30 border border-purple-500/30 rounded-xl text-purple-300 font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+              >
+                <Sparkles size={16} /> Add with AI
+              </button>
+            </div>
             <div className="space-y-6">
               <div className="flex gap-4">
                  <input
@@ -1562,6 +1659,88 @@ function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* AI Parse Modal */}
+      <AnimatePresence>
+        {showAiParseModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center px-4 sm:px-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowAiParseModal(false)
+                setAiParseHistory([])
+              }}
+              className="absolute inset-0 bg-[#0a0a0a]/80 backdrop-blur-xl"
+            />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-[calc(100%-32px)] sm:w-full max-w-lg glass-card border border-white/10 p-1 overflow-hidden"
+            >
+              <div className="bg-[#0a0a0a] rounded-[28px] p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center border border-purple-500/30">
+                      <Sparkles size={20} className="text-purple-400" />
+                    </div>
+                    <h3 className="text-xl font-black text-white">Add with AI</h3>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setShowAiParseModal(false)
+                      setAiParseHistory([])
+                    }}
+                    className="p-2 hover:bg-white/5 rounded-xl transition-all"
+                  >
+                    <X size={20} className="text-white/40 hover:text-white" />
+                  </button>
+                </div>
+
+                <div className="space-y-4 max-h-[40vh] overflow-y-auto custom-scrollbar pr-2">
+                  {aiParseHistory.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`p-4 max-w-[80%] rounded-2xl ${msg.role === 'user' ? 'bg-primary/20 text-white rounded-br-none border border-primary/20' : 'bg-purple-500/10 text-purple-100 rounded-bl-none border border-purple-500/20'}`}>
+                        {msg.role === 'model' && <Bot size={14} className="mb-2 text-purple-400" />}
+                        <p className="text-sm font-medium">{msg.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {aiParseLoading && (
+                    <div className="flex justify-start">
+                       <div className="p-4 rounded-2xl bg-purple-500/10 text-purple-400 rounded-bl-none border border-purple-500/20">
+                         <Loader2 size={16} className="animate-spin" />
+                       </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={aiParseInput}
+                    onChange={e => setAiParseInput(e.target.value)}
+                    onKeyPress={e => e.key === 'Enter' && handleAiParseSubmit()}
+                    placeholder="E.g. Wash clothes tomorrow at 5pm..."
+                    className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-4 text-sm text-white focus:border-purple-500 outline-none"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleAiParseSubmit}
+                    disabled={aiParseLoading || !aiParseInput.trim()}
+                    className="h-14 w-14 bg-gradient-to-r from-purple-500 to-blue-600 rounded-xl flex items-center justify-center text-white disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
+                  >
+                    {aiParseLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* Task Detail Modal */}
       <AnimatePresence>
         {selectedTask && (
@@ -1612,13 +1791,22 @@ function App() {
                     
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {!isEditingTask && (
-                        <button 
-                          onClick={() => setIsEditingTask(true)}
-                          className="px-3 py-2 sm:px-4 sm:py-2 bg-primary/10 hover:bg-primary/20 rounded-xl transition-all text-primary border border-primary/20 flex items-center gap-2 font-black text-[9px] sm:text-[10px] tracking-widest"
-                        >
-                          <TrendingUp size={14} className="sm:size-4" />
-                          EDIT
-                        </button>
+                        <>
+                          <button
+                            onClick={handleAiGuidance}
+                            className="px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-purple-500/10 to-blue-500/10 hover:from-purple-500/20 hover:to-blue-500/20 rounded-xl transition-all text-purple-400 border border-purple-500/20 flex items-center gap-2 font-black text-[9px] sm:text-[10px] tracking-widest"
+                          >
+                            {aiGuidanceLoading ? <Loader2 size={14} className="animate-spin" /> : <Bot size={14} />}
+                            ASK AI
+                          </button>
+                          <button 
+                            onClick={() => setIsEditingTask(true)}
+                            className="px-3 py-2 sm:px-4 sm:py-2 bg-primary/10 hover:bg-primary/20 rounded-xl transition-all text-primary border border-primary/20 flex items-center gap-2 font-black text-[9px] sm:text-[10px] tracking-widest"
+                          >
+                            <TrendingUp size={14} className="sm:size-4" />
+                            EDIT
+                          </button>
+                        </>
                       )}
                       <button 
                         onClick={() => {
@@ -1648,6 +1836,47 @@ function App() {
                       </p>
                     )}
                   </div>
+
+                  {aiGuidance && (
+                    <div className="p-6 bg-gradient-to-br from-purple-500/10 to-blue-500/5 rounded-3xl border border-purple-500/20 space-y-4">
+                      <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                        <Bot size={14} /> AI Guidance
+                      </h4>
+                      <div className="text-sm text-purple-100/80 leading-relaxed whitespace-pre-wrap font-medium space-y-1">
+                        {aiGuidance.split('\n').map((line, i) => {
+                          const parts = line.split(/(\*\*.*?\*\*)/g);
+                          return (
+                            <p key={i}>
+                              {parts.map((part, j) => {
+                                if (part.startsWith('**') && part.endsWith('**')) {
+                                  return <strong key={j} className="text-white font-black">{part.slice(2, -2)}</strong>;
+                                }
+                                return part;
+                              })}
+                            </p>
+                          );
+                        })}
+                      </div>
+                      
+                      <div className="flex items-center gap-2 mt-4 pt-4 border-t border-purple-500/10">
+                        <input
+                          type="text"
+                          value={aiRefineInput}
+                          onChange={e => setAiRefineInput(e.target.value)}
+                          onKeyPress={e => e.key === 'Enter' && handleAiRefineSubmit()}
+                          placeholder="Refine these instructions..."
+                          className="flex-1 bg-black/40 border border-purple-500/20 rounded-xl px-4 py-3 text-xs text-white focus:border-purple-500 outline-none"
+                        />
+                        <button
+                          onClick={handleAiRefineSubmit}
+                          disabled={aiGuidanceLoading || !aiRefineInput.trim()}
+                          className="p-3 bg-purple-500/20 text-purple-300 rounded-xl hover:bg-purple-500/30 transition-all border border-purple-500/30 disabled:opacity-50"
+                        >
+                          {aiGuidanceLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {isEditingTask ? (
                     <>
