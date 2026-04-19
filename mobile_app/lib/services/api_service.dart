@@ -317,6 +317,68 @@ class ApiService extends ChangeNotifier {
     return false;
   }
 
+  // --- AI FEATURES ---
+  Future<Map<String, dynamic>> parseTaskWithAi(String message, List<Map<String, dynamic>> history) async {
+    if (!isAuthenticated) return {};
+    try {
+      final response = await http.post(
+        Uri.parse("${AppConfig.baseUrl}/ai/parse-task"),
+        headers: _headers,
+        body: jsonEncode({
+          "message": message,
+          "conversation_history": history,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        debugPrint("AI Parse Error: ${response.statusCode} - ${response.body}");
+      }
+    } catch (e) {
+      debugPrint("AI Parse Error: $e");
+    }
+    return {};
+  }
+
+  Future<String?> getAiGuidance(int taskId) async {
+    if (!isAuthenticated) return null;
+    try {
+      final response = await http.get(
+        Uri.parse("${AppConfig.baseUrl}/ai/task-guidance/$taskId"),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body)['guidance'];
+      }
+    } catch (e) {
+      debugPrint("AI Guidance Error: $e");
+    }
+    return null;
+  }
+
+  Future<String?> refineAiGuidance(int taskId, String previousGuidance, String feedback) async {
+    if (!isAuthenticated) return null;
+    try {
+      final response = await http.post(
+        Uri.parse("${AppConfig.baseUrl}/ai/task-guidance/$taskId/refine"),
+        headers: _headers,
+        body: jsonEncode({
+          "previous_guidance": previousGuidance,
+          "user_feedback": feedback,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body)['guidance'];
+      }
+    } catch (e) {
+      debugPrint("AI Refine Guidance Error: $e");
+    }
+    return null;
+  }
+
   Future<void> logout() async {
     _token = null;
     _user = null;

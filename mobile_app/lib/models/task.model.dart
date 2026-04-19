@@ -7,6 +7,7 @@ class TaskModel {
   final DateTime? updatedAt;
   final int? userId;
   final int? assigneeId;
+  final String? aiGuidance;
 
   TaskModel({
     this.id,
@@ -17,6 +18,7 @@ class TaskModel {
     this.updatedAt,
     this.userId,
     this.assigneeId,
+    this.aiGuidance,
   });
 
   factory TaskModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class TaskModel {
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
       userId: json['user_id'],
       assigneeId: json['assignee_id'],
+      aiGuidance: json['ai_guidance'],
     );
   }
 
@@ -40,6 +43,7 @@ class TaskModel {
       'is_completed': isCompleted,
       'created_at': createdAt.toIso8601String(),
       'assignee_id': assigneeId,
+      'ai_guidance': aiGuidance,
     };
   }
 }

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../models/task.model.dart';
 import '../../providers/theme_provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class BoardTab extends StatefulWidget {
   const BoardTab({super.key});
@@ -38,9 +39,154 @@ class _BoardTabState extends State<BoardTab> {
     );
   }
 
+  void _showAiParseModal(BuildContext context) {
+    final theme = context.read<ThemeProvider>().theme;
+    final textController = TextEditingController();
+    bool isLoading = false;
+    List<Map<String, dynamic>> history = [];
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.background,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          void _submit() async {
+            if (textController.text.trim().isEmpty) return;
+            final input = textController.text.trim();
+            setModalState(() {
+              history.add({"role": "user", "text": input});
+              textController.clear();
+              isLoading = true;
+            });
+
+            final api = context.read<ApiService>();
+            final response = await api.parseTaskWithAi(input, history);
+
+            if (!mounted) return;
+            
+            if (response['needs_clarification'] == true) {
+              setModalState(() {
+                history.add({"role": "model", "text": response['clarification_question']});
+                isLoading = false;
+              });
+            } else if (response['title'] != null) {
+              Navigator.pop(context);
+              _showTaskModal(
+                context, 
+                task: TaskModel(
+                  title: response['title'],
+                  description: response['description'],
+                  isCompleted: false,
+                  createdAt: response['date'] != null ? DateTime.parse(response['date']) : DateTime.now(),
+                ),
+              );
+            } else {
+              setModalState(() => isLoading = false);
+            }
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + 24, left: 24, right: 24, top: 24),
+            child: SizedBox(
+               height: MediaQuery.of(context).size.height * 0.6,
+               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.auto_awesome, color: Colors.purpleAccent, size: 28),
+                          const SizedBox(width: 8),
+                          Text('Add with AI', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.text)),
+                        ]
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.close, color: theme.textDim),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: history.length,
+                      itemBuilder: (context, index) {
+                        final msg = history[index];
+                        final isUser = msg['role'] == 'user';
+                        return Align(
+                          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isUser ? theme.primary.withOpacity(0.2) : Colors.purpleAccent.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16).copyWith(
+                                bottomRight: isUser ? const Radius.circular(0) : const Radius.circular(16),
+                                bottomLeft: isUser ? const Radius.circular(16) : const Radius.circular(0),
+                              ),
+                              border: Border.all(color: isUser ? theme.primary.withOpacity(0.3) : Colors.purpleAccent.withOpacity(0.3)),
+                            ),
+                            child: Text(msg['text'], style: TextStyle(color: isUser ? theme.text : Colors.purple[200])),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  if (isLoading)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: CircularProgressIndicator(color: Colors.purpleAccent),
+                    ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: textController,
+                          autofocus: true,
+                          style: TextStyle(color: theme.text),
+                          onSubmitted: (_) => _submit(),
+                          decoration: InputDecoration(
+                            hintText: 'E.g. Wash clothes tomorrow at 5pm...',
+                            hintStyle: TextStyle(color: theme.textDim),
+                            filled: true,
+                            fillColor: theme.inputBg,
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(colors: [Colors.purpleAccent, Colors.blueAccent]),
+                          borderRadius: BorderRadius.circular(16)
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.send, color: Colors.white),
+                          onPressed: isLoading ? null : _submit,
+                        ),
+                      )
+                    ],
+                  )
+                ],
+              )
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   void _showTaskModal(BuildContext context, {TaskModel? task}) {
     final theme = context.read<ThemeProvider>().theme;
-    final isEditing = task != null;
+    final isEditing = task != null && task.id != null;
+    String? aiGuidance = task?.aiGuidance;
+    bool isLoadingGuidance = false;
+    final refineController = TextEditingController();
     final titleController = TextEditingController(text: task?.title ?? '');
     final descController = TextEditingController(text: task?.description ?? '');
     DateTime selectedDate = task?.createdAt ?? DateTime.now();
@@ -99,6 +245,99 @@ class _BoardTabState extends State<BoardTab> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                if (isEditing) ...[
+                  if (aiGuidance != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.purpleAccent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.purpleAccent.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.auto_awesome, color: Colors.purpleAccent, size: 16),
+                              const SizedBox(width: 8),
+                              Text('AI Guidance', style: TextStyle(color: Colors.purple[200], fontWeight: FontWeight.bold, fontSize: 12)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          MarkdownBody(
+                            data: aiGuidance!,
+                            styleSheet: MarkdownStyleSheet(
+                              p: TextStyle(color: theme.text, fontSize: 14),
+                              strong: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          if (isLoadingGuidance)
+                            const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(color: Colors.purpleAccent)))
+                          else
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: refineController,
+                                    style: TextStyle(color: theme.text, fontSize: 12),
+                                    decoration: InputDecoration(
+                                      hintText: 'Refine instructions...',
+                                      hintStyle: TextStyle(color: theme.textDim, fontSize: 12),
+                                      filled: true,
+                                      fillColor: Colors.black26,
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  icon: const Icon(Icons.send, color: Colors.purpleAccent, size: 20),
+                                  onPressed: () async {
+                                    if (refineController.text.trim().isEmpty) return;
+                                    final feedback = refineController.text.trim();
+                                    setModalState(() { isLoadingGuidance = true; refineController.clear(); });
+                                    final newGuidance = await context.read<ApiService>().refineAiGuidance(task.id!, aiGuidance!, feedback);
+                                    if (mounted) setModalState(() {
+                                      if (newGuidance != null) aiGuidance = newGuidance;
+                                      isLoadingGuidance = false;
+                                    });
+                                  },
+                                )
+                              ],
+                            )
+                        ],
+                      ),
+                    ),
+                  if (aiGuidance == null) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: isLoadingGuidance 
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.purpleAccent)) 
+                          : const Icon(Icons.auto_awesome, color: Colors.purpleAccent),
+                        label: Text('Ask AI ✨', style: TextStyle(color: Colors.purple[200], fontWeight: FontWeight.bold)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: Colors.purpleAccent.withOpacity(0.3)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: isLoadingGuidance ? null : () async {
+                          setModalState(() => isLoadingGuidance = true);
+                          final fetched = await context.read<ApiService>().getAiGuidance(task.id!);
+                          if (mounted) setModalState(() {
+                            if (fetched != null) aiGuidance = fetched;
+                            isLoadingGuidance = false;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ]
+                ],
                 Row(
                   children: [
                     Expanded(
@@ -445,11 +684,26 @@ class _BoardTabState extends State<BoardTab> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showTaskModal(context),
-        backgroundColor: theme.primary,
-        elevation: 8,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'ai_btn',
+            onPressed: () => _showAiParseModal(context),
+            backgroundColor: Colors.purpleAccent.withOpacity(0.2),
+            elevation: 0,
+            icon: const Icon(Icons.auto_awesome, color: Colors.purpleAccent),
+            label: const Text('Add with AI', style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(width: 16),
+          FloatingActionButton(
+            heroTag: 'add_btn',
+            onPressed: () => _showTaskModal(context),
+            backgroundColor: theme.primary,
+            elevation: 8,
+            child: const Icon(Icons.add, color: Colors.white, size: 28),
+          ),
+        ],
       ),
     );
   }
