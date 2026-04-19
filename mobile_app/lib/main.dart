@@ -10,9 +10,13 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  // Initialize analytics to start collecting basic metrics
-  FirebaseAnalytics.instance;
+  try {
+    await Firebase.initializeApp();
+    // Initialize analytics to start collecting basic metrics
+    FirebaseAnalytics.instance;
+  } catch (e) {
+    debugPrint('Firebase initialization skipped/failed: $e');
+  }
 
   runApp(
     MultiProvider(
