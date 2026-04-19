@@ -137,6 +137,20 @@ To test instantly without Google login:
 - On Web/Mobile Login, enter any username (e.g. `agent_alpha`) in the **Dev Auth** field.
 - This creates a unique persistent profile for that name immediately.
 
+### 🧹 Troubleshooting: Duplicate Apps on Emulator
+
+If you see two app icons on your emulator after a package name change, uninstall the old one:
+
+```powershell
+# Windows (if adb is not in PATH)
+& "$env:LOCALAPPDATA\Android\sdk\platform-tools\adb.exe" uninstall com.example.mobile_app
+
+# Or if adb is in PATH
+adb uninstall com.example.mobile_app
+```
+
+Alternatively, long-press the duplicate icon on the emulator and drag it to **Uninstall**.
+
 ### 🔐 Google Sign-In & OAuth Setup
 
 To ensure Google Sign-In works perfectly across all environments without relying on the Firebase SDK, the project uses direct Google Cloud OAuth. In your Google Cloud Console (**APIs & Services > Credentials**), you must maintain these 4 Client IDs:
