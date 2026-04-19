@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,7 +16,8 @@ class ApiService extends ChangeNotifier {
   UserModel? _user;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     serverClientId: '1060605959840-f76ettkbg62idbr4s03lv22bp0hesu7f.apps.googleusercontent.com',
-    clientId: '1060605959840-0bbrdem82hpufeij1fr3be9v3vn5olbl.apps.googleusercontent.com',
+    // clientId is only needed on iOS; on Android, Play Services auto-resolves via SHA-1
+    clientId: Platform.isIOS ? '1060605959840-0bbrdem82hpufeij1fr3be9v3vn5olbl.apps.googleusercontent.com' : null,
     scopes: ['email', 'profile'],
   );
 
