@@ -14,14 +14,17 @@ from .config import settings
 
 # === Gemini Client Initialization ===
 
+
 def _get_client():
     """Lazily initialize the Gemini client."""
     if not settings.GEMINI_API_KEY:
-        raise RuntimeError("GEMINI_API_KEY is not configured. Add it to your .env file.")
+        raise RuntimeError(
+            "GEMINI_API_KEY is not configured. Add it to your .env file."
+        )
     return genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
-MODEL = "gemini-1.5-flash"
+MODEL = "gemini-2.0-flash"
 
 
 # === System Prompts with Guardrails ===
@@ -79,48 +82,47 @@ RULES:
 
 # === Core AI Functions ===
 
-async def parse_task_from_text(user_message: str, conversation_history: Optional[list] = None) -> dict:
+
+async def parse_task_from_text(
+    user_message: str, conversation_history: Optional[list] = None
+) -> dict:
     """
     Parse a natural language message into structured task data.
     Supports multi-turn conversation for clarification.
-    
+
     Returns dict with either:
       - {title, date, description, needs_clarification: false}
       - {needs_clarification: true, clarification_question: "..."}
     """
     client = _get_client()
-    
+
     now = datetime.now(timezone.utc)
     today = now.strftime("%Y-%m-%d")
     tomorrow = (now + timedelta(days=1)).strftime("%Y-%m-%d")
     day_after = (now + timedelta(days=2)).strftime("%Y-%m-%d")
-    
+
     system_prompt = TASK_PARSER_SYSTEM_PROMPT.format(
         current_datetime=now.strftime("%Y-%m-%d %H:%M:%S UTC"),
         today=today,
         tomorrow=tomorrow,
         day_after_tomorrow=day_after,
     )
-    
+
     # Build conversation contents
     contents = []
     if conversation_history:
         for msg in conversation_history:
             contents.append(
                 types.Content(
-                    role=msg["role"],
-                    parts=[types.Part.from_text(text=msg["text"])]
+                    role=msg["role"], parts=[types.Part.from_text(text=msg["text"])]
                 )
             )
-    
+
     # Add current user message
     contents.append(
-        types.Content(
-            role="user",
-            parts=[types.Part.from_text(text=user_message)]
-        )
+        types.Content(role="user", parts=[types.Part.from_text(text=user_message)])
     )
-    
+
     response = client.models.generate_content(
         model=MODEL,
         contents=contents,
@@ -130,14 +132,14 @@ async def parse_task_from_text(user_message: str, conversation_history: Optional
             max_output_tokens=500,
         ),
     )
-    
+
     raw_text = response.text.strip()
-    
+
     # Strip markdown code fences if Gemini wraps the JSON
     if raw_text.startswith("```"):
         raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text)
         raw_text = re.sub(r"\s*```$", "", raw_text)
-    
+
     try:
         result = json.loads(raw_text)
     except json.JSONDecodeError:
@@ -146,29 +148,30 @@ async def parse_task_from_text(user_message: str, conversation_history: Optional
             "needs_clarification": True,
             "clarification_question": "I didn't quite understand that. Could you describe your task more clearly? For example: 'Buy groceries tomorrow'",
         }
-    
+
     return result
 
 
-async def get_task_guidance(task_title: str, task_description: Optional[str] = None) -> str:
+async def get_task_guidance(
+    task_title: str, task_description: Optional[str] = None
+) -> str:
     """
     Generate practical step-by-step guidance on how to complete a task.
     Returns plain text with numbered steps.
     """
     client = _get_client()
-    
+
     user_prompt = f"Task: {task_title}"
     if task_description:
         user_prompt += f"\nDetails: {task_description}"
-    user_prompt += "\n\nProvide clear, step-by-step instructions on how to complete this task."
-    
+    user_prompt += (
+        "\n\nProvide clear, step-by-step instructions on how to complete this task."
+    )
+
     response = client.models.generate_content(
         model=MODEL,
         contents=[
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=user_prompt)]
-            )
+            types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])
         ],
         config=types.GenerateContentConfig(
             system_instruction=TASK_GUIDANCE_SYSTEM_PROMPT,
@@ -176,7 +179,7 @@ async def get_task_guidance(task_title: str, task_description: Optional[str] = N
             max_output_tokens=1000,
         ),
     )
-    
+
     return response.text.strip()
 
 
@@ -191,7 +194,7 @@ async def refine_task_guidance(
     Returns updated plain text with numbered steps.
     """
     client = _get_client()
-    
+
     user_prompt = f"""Original Task: {task_title}
 {f"Details: {task_description}" if task_description else ""}
 
@@ -202,14 +205,11 @@ User's Feedback/Preference:
 {user_feedback}
 
 Please update the guidance to incorporate the user's feedback while keeping it practical and actionable."""
-    
+
     response = client.models.generate_content(
         model=MODEL,
         contents=[
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=user_prompt)]
-            )
+            types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])
         ],
         config=types.GenerateContentConfig(
             system_instruction=TASK_GUIDANCE_REFINE_SYSTEM_PROMPT,
@@ -217,5 +217,5 @@ Please update the guidance to incorporate the user's feedback while keeping it p
             max_output_tokens=1000,
         ),
     )
-    
+
     return response.text.strip()
