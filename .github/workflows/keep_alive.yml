@@ -2,8 +2,8 @@ name: Keep Render Service Alive
 
 on:
   schedule:
-    # Runs every 10 minutes to stay within Render's 15-min spin-down threshold
-    - cron: '*/10 * * * *'
+    # Runs every 5 minutes (GitHub's minimum interval)
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Allows manual trigger for testing
 
 jobs:
