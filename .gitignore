@@ -19,3 +19,11 @@ build/
 
 # Databases
 *.sqlite3
+*.db
+
+# Environment variables
+.env
+.env.*
+
+# Static assets (local uploads)
+static/
