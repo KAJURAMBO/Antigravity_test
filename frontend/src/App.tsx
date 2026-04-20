@@ -879,8 +879,8 @@ function App() {
             <div className="w-24 h-24 bg-primary/20 rounded-[32px] flex items-center justify-center mx-auto mb-8">
               <Layout size={48} className="text-primary" />
             </div>
-            <h1 className="text-5xl font-black text-white tracking-tight">Focus Flow</h1>
-            <p className="text-xl text-muted-foreground font-medium">Elevate your productivity with a premium task management experience. ✨</p>
+            <h1 className="text-6xl font-black text-white tracking-tight">AI-Smart Todo</h1>
+            <p className="text-xl text-muted-foreground font-medium">Conquer every task with confidence.</p>
           </div>
 
           <div className="flex flex-col items-center gap-6">

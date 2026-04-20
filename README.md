@@ -1,4 +1,4 @@
-# Productivity Dashboard 🚀
+# AI-Smart Todo 🚀
 
 A full-stack, Full-Cloud premium To-Do application with real-time analytics and a professional dashboard layout.
 
@@ -32,6 +32,21 @@ Built with industry-leading privacy standards, we ensure your personal data rema
 
 - **Dashboard:** [https://todo-frontend-98on.onrender.com/](https://todo-frontend-98on.onrender.com/)
 - **API Documentation:** [https://todo-backend-1lun.onrender.com/docs](https://todo-backend-1lun.onrender.com/docs)
+
+## 📡 Service Resilience & High Availability
+
+To ensure the application remains responsive and avoids "cold starts" on Render's free tier, we use an external pinger (e.g., [Cron-job.org](https://cron-job.org)) to keep the services awake.
+
+### Pinger Endpoints:
+1.  **Backend (Critical):** `https://todo-backend-1lun.onrender.com/health`
+    *   *Interval: Every 5 minutes*
+    *   *Purpose: Keeps the API and Database connection warm.*
+2.  **Frontend:** `https://todo-frontend-98on.onrender.com`
+    *   *Interval: Every 10-15 minutes*
+    *   *Purpose: Keeps the web UI instantly accessible.*
+
+> [!NOTE]
+> We moved from GitHub Actions `schedule` to **Cron-job.org** because GitHub's free-tier scheduler can be delayed by over an hour, which is too slow to prevent Render's 15-minute spin-down.
 
 ## 🛠 Tech Stack
 

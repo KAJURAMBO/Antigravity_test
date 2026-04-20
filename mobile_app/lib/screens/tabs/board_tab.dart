@@ -186,6 +186,7 @@ class _BoardTabState extends State<BoardTab> {
     final isEditing = task != null && task.id != null;
     String? aiGuidance = task?.aiGuidance;
     bool isLoadingGuidance = false;
+    bool isSaving = false;
     final refineController = TextEditingController();
     final titleController = TextEditingController(text: task?.title ?? '');
     final descController = TextEditingController(text: task?.description ?? '');
@@ -405,23 +406,29 @@ class _BoardTabState extends State<BoardTab> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: () async {
-                      if (titleController.text.isNotEmpty) {
-                        final api = context.read<ApiService>();
-                        bool success;
-                        if (isEditing) {
-                          success = await api.updateTask(task.id!, title: titleController.text, description: descController.text, createdAt: selectedDate, assigneeId: selectedAssignee);
-                        } else {
-                          success = await api.createTask(titleController.text, descController.text, selectedDate, selectedAssignee);
-                        }
-                        if (success && mounted) Navigator.pop(context);
+                    onPressed: isSaving ? null : () async {
+                      if (titleController.text.trim().isEmpty) return;
+                      setModalState(() => isSaving = true);
+                      final api = context.read<ApiService>();
+                      bool success;
+                      if (isEditing) {
+                        success = await api.updateTask(task.id!, title: titleController.text, description: descController.text, createdAt: selectedDate, assigneeId: selectedAssignee);
+                      } else {
+                        success = await api.createTask(titleController.text, descController.text, selectedDate, selectedAssignee);
+                      }
+                      if (success && mounted) {
+                        Navigator.pop(context);
+                      } else {
+                        setModalState(() => isSaving = false);
                       }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.primary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
-                    child: Text(isEditing ? 'Update Task' : 'Launch Task', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                    child: isSaving
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                        : Text(isEditing ? 'Update Task' : 'Launch Task', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                   ),
                 ),
                 const SizedBox(height: 32),

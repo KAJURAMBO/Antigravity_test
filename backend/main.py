@@ -64,7 +64,7 @@ class GoogleAuthRequest(BaseModel):
 
 @app.get("/")
 def read_root():
-    return {"Hello": "World", "Service": "To-Do Backend"}
+    return {"Hello": "World", "Service": "AI-Smart Todo Backend"}
 
 
 @app.get("/health")
