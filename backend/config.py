@@ -28,5 +28,8 @@ class Settings(BaseSettings):
     # Gemini AI
     GEMINI_API_KEY: Optional[str] = None
 
+    # OpenRouter AI
+    OPENROUTER_API_KEY: Optional[str] = None
+
 
 settings = Settings()

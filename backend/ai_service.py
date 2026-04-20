@@ -1,15 +1,14 @@
-"""
-AI Service — Gemini 2.5 Flash Integration
-Handles natural language task parsing and task completion guidance.
-"""
-
 import json
 import re
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from google import genai
-from google.genai import types
+from google.genai import types, errors
+from openai import OpenAI
 from .config import settings
+
+logger = logging.getLogger(__name__)
 
 
 # === Gemini Client Initialization ===
@@ -24,7 +23,18 @@ def _get_client():
     return genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
+def _get_openrouter_client():
+    """Lazily initialize the OpenRouter client."""
+    if not settings.OPENROUTER_API_KEY:
+        return None
+    return OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=settings.OPENROUTER_API_KEY,
+    )
+
+
 MODEL = "gemini-2.0-flash"
+FALLBACK_MODEL = "openai/gpt-oss-120b:free"
 
 
 # === System Prompts with Guardrails ===
@@ -123,17 +133,40 @@ async def parse_task_from_text(
         types.Content(role="user", parts=[types.Part.from_text(text=user_message)])
     )
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            temperature=0.1,  # Low temperature for deterministic parsing
-            max_output_tokens=500,
-        ),
-    )
+    # Try Gemini first
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.1,  # Low temperature for deterministic parsing
+                max_output_tokens=500,
+            ),
+        )
+        raw_text = response.text.strip()
+    except Exception as e:
+        logger.error(f"Gemini error: {e}, falling back to {FALLBACK_MODEL}")
+        or_client = _get_openrouter_client()
+        if or_client:
+            # Convert contents to OpenAI format
+            messages = [{"role": "system", "content": system_prompt}]
+            for msg in conversation_history or []:
+                messages.append({"role": msg["role"], "content": msg["text"]})
+            messages.append({"role": "user", "content": user_message})
 
-    raw_text = response.text.strip()
+            or_response = or_client.chat.completions.create(
+                model=FALLBACK_MODEL,
+                messages=messages,
+                temperature=0.1,
+                max_tokens=500,
+                extra_body={"reasoning": {"enabled": True}}
+            )
+            raw_text = or_response.choices[0].message.content.strip()
+        else:
+            raise e
+
+    # Strip markdown code fences if wrapped
 
     # Strip markdown code fences if Gemini wraps the JSON
     if raw_text.startswith("```"):
@@ -168,19 +201,38 @@ async def get_task_guidance(
         "\n\nProvide clear, step-by-step instructions on how to complete this task."
     )
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=[
-            types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])
-        ],
-        config=types.GenerateContentConfig(
-            system_instruction=TASK_GUIDANCE_SYSTEM_PROMPT,
-            temperature=0.3,
-            max_output_tokens=1000,
-        ),
-    )
-
-    return response.text.strip()
+    # Try Gemini first
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=[
+                types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=TASK_GUIDANCE_SYSTEM_PROMPT,
+                temperature=0.3,
+                max_output_tokens=1000,
+            ),
+        )
+        return response.text.strip()
+    except Exception as e:
+        logger.error(f"Gemini error: {e}, falling back to {FALLBACK_MODEL}")
+        or_client = _get_openrouter_client()
+        if or_client:
+            messages = [
+                {"role": "system", "content": TASK_GUIDANCE_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ]
+            or_response = or_client.chat.completions.create(
+                model=FALLBACK_MODEL,
+                messages=messages,
+                temperature=0.3,
+                max_tokens=1000,
+                extra_body={"reasoning": {"enabled": True}}
+            )
+            return or_response.choices[0].message.content.strip()
+        else:
+            raise e
 
 
 async def refine_task_guidance(
@@ -206,16 +258,35 @@ User's Feedback/Preference:
 
 Please update the guidance to incorporate the user's feedback while keeping it practical and actionable."""
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=[
-            types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])
-        ],
-        config=types.GenerateContentConfig(
-            system_instruction=TASK_GUIDANCE_REFINE_SYSTEM_PROMPT,
-            temperature=0.3,
-            max_output_tokens=1000,
-        ),
-    )
-
-    return response.text.strip()
+    # Try Gemini first
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=[
+                types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=TASK_GUIDANCE_REFINE_SYSTEM_PROMPT,
+                temperature=0.3,
+                max_output_tokens=1000,
+            ),
+        )
+        return response.text.strip()
+    except Exception as e:
+        logger.error(f"Gemini error: {e}, falling back to {FALLBACK_MODEL}")
+        or_client = _get_openrouter_client()
+        if or_client:
+            messages = [
+                {"role": "system", "content": TASK_GUIDANCE_REFINE_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ]
+            or_response = or_client.chat.completions.create(
+                model=FALLBACK_MODEL,
+                messages=messages,
+                temperature=0.3,
+                max_tokens=1000,
+                extra_body={"reasoning": {"enabled": True}}
+            )
+            return or_response.choices[0].message.content.strip()
+        else:
+            raise e
