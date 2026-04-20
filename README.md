@@ -45,6 +45,10 @@ To ensure the application remains responsive and avoids "cold starts" on Render'
     *   *Interval: Every 10-15 minutes*
     *   *Purpose: Keeps the web UI instantly accessible.*
 
+### 📊 Real-Time Status Dashboard:
+Check the live uptime and availability of our services here:  
+**[System Status Page](https://tt1r9jdm.status.cron-job.org/)**
+
 > [!NOTE]
 > We moved from GitHub Actions `schedule` to **Cron-job.org** because GitHub's free-tier scheduler can be delayed by over an hour, which is too slow to prevent Render's 15-minute spin-down.
 

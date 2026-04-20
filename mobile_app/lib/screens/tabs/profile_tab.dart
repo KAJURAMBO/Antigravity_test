@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 import '../../providers/theme_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -198,6 +199,44 @@ class _ProfileTabState extends State<ProfileTab> {
                 onChanged: (val) => themeProvider.toggleTheme(),
                 activeColor: theme.primary,
                 contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: theme.divider),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('APP AVAILABILITY', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.textDim)),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () async {
+                      final url = Uri.parse('https://tt1r9jdm.status.cron-job.org/');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        const Icon(Icons.bar_chart, color: Colors.green, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'https://tt1r9jdm.status.cron-job.org/',
+                            style: TextStyle(fontSize: 14, color: theme.primary, decoration: TextDecoration.underline),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 32),

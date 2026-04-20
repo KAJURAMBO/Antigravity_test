@@ -920,6 +920,19 @@ function App() {
             </div>
           )}
         </motion.div>
+        
+        {/* Footer Status Link */}
+        <div className="absolute bottom-8 left-0 right-0 text-center">
+          <a 
+            href="https://tt1r9jdm.status.cron-job.org/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-[10px] font-black text-white/20 hover:text-primary transition-colors uppercase tracking-[0.3em] flex items-center justify-center gap-2"
+          >
+            <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+            System Status & Availability
+          </a>
+        </div>
       </div>
     )
   }
@@ -1176,6 +1189,17 @@ function App() {
                     >
                       Logout Session
                     </button>
+
+                    <div className="mt-8 pt-8 border-t border-white/5 space-y-4">
+                      <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] italic">System Performance</h4>
+                      <div className="glass p-4 rounded-2xl border border-white/5 flex items-center justify-between group cursor-pointer" onClick={() => window.open('https://tt1r9jdm.status.cron-job.org/', '_blank')}>
+                         <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-xs font-bold text-white/70">App Availability</span>
+                         </div>
+                         <BarChart size={14} className="text-primary group-hover:scale-110 transition-transform" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
