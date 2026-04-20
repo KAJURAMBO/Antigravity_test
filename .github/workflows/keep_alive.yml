@@ -1,0 +1,32 @@
+name: Keep Render Service Alive
+
+on:
+  schedule:
+    # Runs every 10 minutes to stay within Render's 15-min spin-down threshold
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual trigger for testing
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Services
+        env:
+          RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
+          RENDER_FRONTEND_URL: ${{ secrets.RENDER_FRONTEND_URL }}
+        run: |
+          # Ping Backend (via /health)
+          if [ -n "$RENDER_APP_URL" ]; then
+            echo "Pinging Backend..."
+            URL=$(echo $RENDER_APP_URL | sed 's:/*$::')
+            curl -f "$URL/health"
+          else
+            echo "Warning: RENDER_APP_URL is not set."
+          fi
+
+          # Ping Frontend (optional root ping)
+          if [ -n "$RENDER_FRONTEND_URL" ]; then
+            echo "Pinging Frontend..."
+            URL=$(echo $RENDER_FRONTEND_URL | sed 's:/*$::')
+            curl -f "$URL"
+          fi

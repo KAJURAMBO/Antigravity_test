@@ -68,8 +68,16 @@ def read_root():
 
 
 @app.get("/health")
-def health_check():
-    return {"status": "ok"}
+def health_check(session: Session = Depends(get_session)):
+    """Health check endpoint that also verifies database connectivity."""
+    try:
+        # Check database connectivity
+        from sqlmodel import text
+        session.exec(text("SELECT 1")).first()
+        return {"status": "ok", "database": "connected"}
+    except Exception as e:
+        print(f"Health Check Failure: {e}")
+        return {"status": "error", "database": "disconnected", "detail": str(e)}, 500
 
 
 @app.post("/auth/google")
