@@ -1,7 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship, Column, JSON
 from typing import Optional, List
 from datetime import datetime, timezone
-from pydantic import field_serializer
+from pydantic import field_serializer, field_validator
 
 
 class UserBase(SQLModel):
@@ -64,6 +64,13 @@ class TaskBase(SQLModel):
     assignee_id: Optional[int] = None
     ai_guidance: Optional[str] = None
     ai_guidance_history: Optional[List[dict]] = Field(default=None, sa_column=Column(JSON))
+
+    @field_validator("ai_guidance_history", mode="before")
+    @classmethod
+    def validate_history(cls, v):
+        if v == "null":
+            return None
+        return v
 
 
 class Task(TaskBase, table=True):
