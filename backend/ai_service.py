@@ -48,8 +48,8 @@ RULES:
 1. Response must be ONLY valid JSON.
 2. Fields: "title" (string), "date" (ISO 8601 YYYY-MM-DDTHH:MM:SS), "description" (string), "assignee_id" (int or null).
 3. DELEGATION: If the user mentions a team member (e.g., "Delegate to Rahman", "Assign to Sarah"), find their ID from the TEAM MEMBERS list above. If no match is found, set "assignee_id" to null.
-4. TIME: If the user mentions a specific time (e.g., "5pm", "at 17:00", "noon"), include it in the "date" field. Return ISO string WITHOUT any timezone suffix (NO 'Z'). If NO time is mentioned, default to 09:00:00 (start of day).
-5. CLARIFICATION: ONLY set "needs_clarification" to true if the "title" or "date" (day) is completely missing. If the user provided a day but NO time (e.g., "today"), do NOT ask for the time—just use the default.
+4. TIME: If the user mentions a specific time (e.g., "5pm"), include it in the "date" field (NO 'Z'). If ONLY a day is mentioned (e.g., "today", "tomorrow"), default to 05:30:00 (Start of Day).
+5. CLARIFICATION: Set "needs_clarification" to true IF the "date" (day) is missing (e.g., "have tea"). If the user provided a day (e.g., "today", "tomorrow"), do NOT ask—just use 05:30:00.
 6. HISTORY: Scan context. If info was given earlier, USE IT.
 7. CREATIVITY: If NO description is provided, generate a short (max 1 sentence) creative/helpful description. NEVER leave it empty.
 8. Current Date/Time: {current_datetime} (today={today}, tomorrow={tomorrow}).
