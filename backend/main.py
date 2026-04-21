@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from sqlmodel import Session, select
-from typing import List
+from typing import List, Optional
 from .database import smart_initialize_db, get_session
 from .models import (
     Task,
@@ -484,6 +484,7 @@ from .ai_service import parse_task_from_text, get_task_guidance, refine_task_gui
 class AIParseRequest(BaseModel):
     message: str
     conversation_history: list = []  # For multi-turn clarification
+    local_time: Optional[str] = None # ISO 8601 local time for reference
 
 
 class AIRefineRequest(BaseModel):
@@ -493,13 +494,36 @@ class AIRefineRequest(BaseModel):
 @app.post("/ai/parse-task")
 async def ai_parse_task(
     request: AIParseRequest,
+    session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    """Parse natural language into structured task data using Gemini AI."""
+    """Parse natural language into structured task data with team context."""
     try:
+        # Fetch team members for context
+        my_teams = session.exec(
+            select(TeamMember.team_id).where(TeamMember.user_id == current_user.id)
+        ).all()
+        
+        team_members = []
+        if my_teams:
+            relations = session.exec(
+                select(User)
+                .join(TeamMember, TeamMember.user_id == User.id)
+                .where(TeamMember.team_id.in_(my_teams))
+            ).all()
+            
+            # De-duplicate users and format for AI
+            seen_ids = set()
+            for user in relations:
+                if user.id not in seen_ids:
+                    team_members.append({"id": user.id, "name": user.full_name or user.email})
+                    seen_ids.add(user.id)
+
         result = await parse_task_from_text(
             user_message=request.message,
             conversation_history=request.conversation_history or None,
+            team_members=team_members,
+            local_time=request.local_time
         )
         return result
     except RuntimeError as e:

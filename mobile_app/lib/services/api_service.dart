@@ -346,6 +346,7 @@ class ApiService extends ChangeNotifier {
         body: jsonEncode({
           "message": message,
           "conversation_history": history,
+          "local_time": DateTime.now().toIso8601String(),
         }),
       );
 

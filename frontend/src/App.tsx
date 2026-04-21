@@ -359,13 +359,29 @@ function App() {
     
     setLoading(true)
     try {
+      const now = new Date();
+      const todayStr = now.toLocaleDateString('sv-SE'); // YYYY-MM-DD
+      
+      let finalCreatedAt;
+      if (!scheduledDate) {
+        // No date specified -> 5:30 AM (Midnight UTC)
+        const midnight = new Date(todayStr);
+        finalCreatedAt = midnight.toISOString();
+      } else if (scheduledDate === todayStr) {
+        // Picked Today -> Use ACTUAL TIME (Now)
+        finalCreatedAt = now.toISOString();
+      } else {
+        // Picked Future/Past -> Use that date's midnight
+        finalCreatedAt = new Date(scheduledDate).toISOString();
+      }
+
       const data = await apiFetch('/tasks/', {
         method: 'POST',
         body: JSON.stringify({
           title: newTask,
           description: newDescription || null,
           is_completed: false,
-          created_at: scheduledDate ? new Date(scheduledDate).toISOString() : new Date().toISOString(),
+          created_at: finalCreatedAt,
           assignee_id: assigneeId || null
         })
       })
@@ -454,7 +470,8 @@ function App() {
         method: 'POST',
         body: JSON.stringify({
           message: inputMessageText,
-          conversation_history: aiParseHistory
+          conversation_history: aiParseHistory,
+          local_time: new Date().toLocaleString('sv-SE').replace(' ', 'T')
         })
       })
 
@@ -1574,8 +1591,8 @@ function App() {
               <div className="flex flex-col gap-2 sm:gap-3">
                 <label className="text-[9px] sm:text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-4">Schedule Objective (Optional)</label>
                 <input
-                  type="date"
-                  value={scheduledDate}
+                  type="datetime-local"
+                  value={scheduledDate ? scheduledDate.slice(0, 16) : ''}
                   onChange={(e) => setScheduledDate(e.target.value)}
                   className="input-premium h-10 sm:h-14 text-[10px] sm:text-xs px-3 sm:px-6 text-primary scheme-dark"
                 />
@@ -2013,8 +2030,8 @@ function App() {
                     <div className="flex flex-col gap-2 sm:gap-3">
                       <label className="text-[9px] sm:text-[10px] font-black text-white/20 uppercase tracking-widest px-4">Reschedule Objective</label>
                       <input
-                        type="date"
-                        value={editDate}
+                        type="datetime-local"
+                        value={editDate ? editDate.slice(0, 16) : ''}
                         onChange={(e) => setEditDate(e.target.value)}
                         className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-3 sm:p-4 text-sm sm:text-base text-white focus:border-primary outline-none transition-all scheme-dark"
                       />

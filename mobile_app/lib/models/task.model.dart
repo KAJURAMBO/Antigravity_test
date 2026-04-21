@@ -29,8 +29,12 @@ class TaskModel {
       title: json['title'],
       description: json['description'],
       isCompleted: json['is_completed'] ?? false,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
-      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
+      createdAt: json['created_at'] != null 
+          ? DateTime.parse(json['created_at']).toLocal() 
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null 
+          ? DateTime.parse(json['updated_at']).toLocal() 
+          : null,
       userId: json['user_id'],
       assigneeId: json['assignee_id'],
       aiGuidance: json['ai_guidance'],
