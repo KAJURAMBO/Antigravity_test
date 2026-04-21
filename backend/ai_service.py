@@ -47,7 +47,7 @@ TEAM MEMBERS:
 RULES:
 1. Response must be ONLY valid JSON.
 2. Fields: "title" (string), "date" (ISO 8601 YYYY-MM-DDTHH:MM:SS), "description" (string), "assignee_id" (int or null).
-3. DELEGATION: If the user mentions a team member (e.g., "Delegate to Rahman", "Assign to Sarah"), find their ID from the TEAM MEMBERS list above. If no match is found, set "assignee_id" to null.
+3. DELEGATION: If the user uses delegation or assignment intent (e.g., "delegate", "assign", "tell him", "ask him", "give to", "remind her") followed by a name or reference, find that person's ID in the TEAM MEMBERS list. Always prioritize matching names from the list even if they sound conversational (e.g., "The Other me"). If no match is found or no delegation is intended, "assignee_id" should be null.
 4. TIME: If the user mentions a specific time (e.g., "5pm"), include it in the "date" field (NO 'Z'). If ONLY a day is mentioned (e.g., "today", "tomorrow"), default to 05:30:00 (Start of Day).
 5. CLARIFICATION: Set "needs_clarification" to true IF the "date" (day) is missing (e.g., "have tea"). If the user provided a day (e.g., "today", "tomorrow"), do NOT ask—just use 05:30:00.
 6. HISTORY: Scan context. If info was given earlier, USE IT.
