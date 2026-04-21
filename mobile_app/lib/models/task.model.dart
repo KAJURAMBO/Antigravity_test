@@ -8,6 +8,7 @@ class TaskModel {
   final int? userId;
   final int? assigneeId;
   final String? aiGuidance;
+  final List<dynamic>? aiGuidanceHistory;
 
   TaskModel({
     this.id,
@@ -19,6 +20,7 @@ class TaskModel {
     this.userId,
     this.assigneeId,
     this.aiGuidance,
+    this.aiGuidanceHistory,
   });
 
   factory TaskModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class TaskModel {
       userId: json['user_id'],
       assigneeId: json['assignee_id'],
       aiGuidance: json['ai_guidance'],
+      aiGuidanceHistory: json['ai_guidance_history'],
     );
   }
 
@@ -44,6 +47,7 @@ class TaskModel {
       'created_at': createdAt.toIso8601String(),
       'assignee_id': assigneeId,
       'ai_guidance': aiGuidance,
+      'ai_guidance_history': aiGuidanceHistory,
     };
   }
 }

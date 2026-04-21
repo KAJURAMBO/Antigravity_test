@@ -17,6 +17,51 @@ class _BoardTabState extends State<BoardTab> {
   String _listTimeframe = 'today'; // today, 7d, 30d
   String _listStatus = 'active'; // active, backlog, done, future, delegated
 
+  // Multi-select delete
+  bool _isSelectMode = false;
+  final Set<int> _selectedIds = {};
+
+  void _toggleSelectMode() {
+    setState(() {
+      _isSelectMode = !_isSelectMode;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  Future<void> _bulkDelete(BuildContext context) async {
+    if (_selectedIds.isEmpty) return;
+    final count = _selectedIds.length;
+    final api = context.read<ApiService>();
+    
+    // Call the new backend bulk endpoint for a single refresh
+    final success = await api.bulkDeleteTasks(_selectedIds.toList());
+    
+    if (success && mounted) {
+      setState(() {
+        _isSelectMode = false;
+        _selectedIds.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$count task${count > 1 ? 's' : ''} deleted'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+
   void _confirmDelete(BuildContext context, int taskId) {
     final theme = context.read<ThemeProvider>().theme;
     showDialog(
@@ -300,10 +345,15 @@ class _BoardTabState extends State<BoardTab> {
                                   onPressed: () async {
                                     if (refineController.text.trim().isEmpty) return;
                                     final feedback = refineController.text.trim();
-                                    setModalState(() { isLoadingGuidance = true; refineController.clear(); });
-                                    final newGuidance = await context.read<ApiService>().refineAiGuidance(task.id!, aiGuidance!, feedback);
+                                    setModalState(() { 
+                                      isLoadingGuidance = true; 
+                                      refineController.clear(); 
+                                    });
+                                    final newGuidance = await context.read<ApiService>().refineAiGuidance(task.id!, feedback);
                                     if (mounted) setModalState(() {
-                                      if (newGuidance != null) aiGuidance = newGuidance;
+                                      if (newGuidance != null) {
+                                        aiGuidance = newGuidance;
+                                      }
                                       isLoadingGuidance = false;
                                     });
                                   },
@@ -504,26 +554,42 @@ class _BoardTabState extends State<BoardTab> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: Text('Mission Board', style: TextStyle(fontWeight: FontWeight.w900, color: theme.text)),
+        title: Text(
+          _isSelectMode ? '${_selectedIds.length} selected' : 'Mission Board',
+          style: TextStyle(fontWeight: FontWeight.w900, color: _isSelectMode ? Colors.redAccent : theme.text),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          DropdownButton<String>(
-            value: _listTimeframe,
-            dropdownColor: theme.card,
-            underline: const SizedBox(),
-            icon: Icon(Icons.calendar_month, color: theme.primary),
-            style: TextStyle(color: theme.text, fontWeight: FontWeight.bold),
-            items: const [
-              DropdownMenuItem(value: 'today', child: Text('Today')),
-              DropdownMenuItem(value: '7d', child: Text('Weekly')),
-              DropdownMenuItem(value: '30d', child: Text('Monthly')),
-            ],
-            onChanged: (val) {
-              if (val != null) setState(() => _listTimeframe = val);
-            },
-          ),
-          const SizedBox(width: 16),
+          if (_isSelectMode) ...[
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent),
+              tooltip: 'Delete selected',
+              onPressed: _selectedIds.isEmpty ? null : () => _bulkDelete(context),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close),
+              color: theme.textDim,
+              onPressed: _toggleSelectMode,
+            ),
+          ] else ...[
+            DropdownButton<String>(
+              value: _listTimeframe,
+              dropdownColor: theme.card,
+              underline: const SizedBox(),
+              icon: Icon(Icons.calendar_month, color: theme.primary),
+              style: TextStyle(color: theme.text, fontWeight: FontWeight.bold),
+              items: const [
+                DropdownMenuItem(value: 'today', child: Text('Today')),
+                DropdownMenuItem(value: '7d', child: Text('Weekly')),
+                DropdownMenuItem(value: '30d', child: Text('Monthly')),
+              ],
+              onChanged: (val) {
+                if (val != null) setState(() => _listTimeframe = val);
+              },
+            ),
+            const SizedBox(width: 16),
+          ]
         ],
       ),
       body: Column(
@@ -571,33 +637,76 @@ class _BoardTabState extends State<BoardTab> {
                     itemBuilder: (context, index) {
                       final task = filteredTasks[index];
                       final bool isDone = task.isCompleted;
+                      final bool isSelected = _selectedIds.contains(task.id);
 
                       return GestureDetector(
-                        onTap: () => _showTaskModal(context, task: task),
+                        onLongPress: () {
+                          if (!_isSelectMode) {
+                            setState(() {
+                              _isSelectMode = true;
+                              _selectedIds.add(task.id!);
+                            });
+                          }
+                        },
+                        onTap: () {
+                          if (_isSelectMode) {
+                            _toggleSelection(task.id!);
+                          } else {
+                            _showTaskModal(context, task: task);
+                          }
+                        },
                         child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
+                          duration: const Duration(milliseconds: 200),
                           margin: const EdgeInsets.only(bottom: 12),
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: isDone ? theme.divider.withOpacity(0.3) : theme.card,
+                            color: isSelected
+                                ? Colors.redAccent.withOpacity(0.08)
+                                : isDone ? theme.divider.withOpacity(0.3) : theme.card,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: isDone ? Colors.transparent : theme.divider),
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.redAccent.withOpacity(0.6)
+                                  : isDone ? Colors.transparent : theme.divider,
+                              width: isSelected ? 2 : 1,
+                            ),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: isDone ? Colors.green.withOpacity(0.1) : theme.primary.withOpacity(0.1),
-                                  shape: BoxShape.circle,
+                              if (_isSelectMode)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 12, top: 4),
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 150),
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? Colors.redAccent : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: isSelected ? Colors.redAccent : theme.textDim,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: isSelected
+                                        ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                        : null,
+                                  ),
+                                )
+                              else
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: isDone ? Colors.green.withOpacity(0.1) : theme.primary.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isDone ? Icons.check_circle_rounded : Icons.access_time_filled_rounded,
+                                    color: isDone ? Colors.green : theme.primary,
+                                    size: 24,
+                                  ),
                                 ),
-                                child: Icon(
-                                  isDone ? Icons.check_circle_rounded : Icons.access_time_filled_rounded,
-                                  color: isDone ? Colors.green : theme.primary,
-                                  size: 24,
-                                ),
-                              ),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
@@ -663,24 +772,25 @@ class _BoardTabState extends State<BoardTab> {
                                   ],
                                 ),
                               ),
-                              PopupMenuButton<String>(
-                                icon: Icon(Icons.more_vert, color: theme.textDim),
-                                color: theme.card,
-                                onSelected: (value) {
-                                  if (value == 'toggle') {
-                                    apiService.updateTask(task.id!, isCompleted: !isDone);
-                                  } else if (value == 'edit') {
-                                    _showTaskModal(context, task: task);
-                                  } else if (value == 'delete') {
-                                    _confirmDelete(context, task.id!);
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(value: 'toggle', child: Text(isDone ? 'Mark as Active' : 'Mark as Done', style: TextStyle(color: theme.text))),
-                                  PopupMenuItem(value: 'edit', child: Text('Edit details', style: TextStyle(color: theme.text))),
-                                  const PopupMenuItem(value: 'delete', child: Text('Delete task', style: TextStyle(color: Colors.redAccent))),
-                                ],
-                              ),
+                              if (!_isSelectMode)
+                                PopupMenuButton<String>(
+                                  icon: Icon(Icons.more_vert, color: theme.textDim),
+                                  color: theme.card,
+                                  onSelected: (value) {
+                                    if (value == 'toggle') {
+                                      apiService.updateTask(task.id!, isCompleted: !isDone);
+                                    } else if (value == 'edit') {
+                                      _showTaskModal(context, task: task);
+                                    } else if (value == 'delete') {
+                                      _confirmDelete(context, task.id!);
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    PopupMenuItem(value: 'toggle', child: Text(isDone ? 'Mark as Active' : 'Mark as Done', style: TextStyle(color: theme.text))),
+                                    PopupMenuItem(value: 'edit', child: Text('Edit details', style: TextStyle(color: theme.text))),
+                                    const PopupMenuItem(value: 'delete', child: Text('Delete task', style: TextStyle(color: Colors.redAccent))),
+                                  ],
+                                ),
                             ],
                           ),
                         ),

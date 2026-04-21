@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon, X, Settings, Sparkles, Bot, Send, Loader2 } from 'lucide-react'
+import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon, X, Settings, Sparkles, Bot, Send, Loader2, Square, CheckSquare } from 'lucide-react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { 
   AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -30,37 +30,54 @@ interface UserProfile {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDate, members, currentUser }: { 
+const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDate, members, currentUser, isSelectMode, isSelected, onToggleSelect }: { 
   task: Task, 
   toggleTask: (t: Task) => void, 
   deleteTask: (id: number) => void, 
   setSelectedTask: (t: Task) => void, 
   formatTaskDate: (d: string) => any,
   members: UserProfile[],
-  currentUser: UserProfile
+  currentUser: UserProfile,
+  isSelectMode: boolean,
+  isSelected: boolean,
+  onToggleSelect: (id: number) => void,
 }) => (
   <motion.div
     layout
     initial={{ opacity: 0, scale: 0.95, y: 20 }}
     animate={{ opacity: 1, scale: 1, y: 0 }}
     exit={{ opacity: 0, scale: 0.95, x: 20 }}
-    className={`glass-card p-1 relative border border-white/10 group ${task.is_completed ? 'opacity-40 grayscale-[0.8]' : ''}`}
+    className={`glass-card p-1 relative border group transition-all ${
+      isSelected 
+        ? 'border-red-500/60 bg-red-500/5 shadow-lg shadow-red-500/10' 
+        : 'border-white/10'
+    } ${task.is_completed ? 'opacity-40 grayscale-[0.8]' : ''}`}
+    onClick={isSelectMode ? () => onToggleSelect(task.id) : undefined}
   >
-    <div className={`p-6 rounded-[22px] flex items-start gap-6 bg-gradient-to-br ${task.is_completed ? 'from-white/[0.02] to-transparent' : 'from-white/[0.05] to-transparent'}`}>
-      <button
-        onClick={(e) => { e.stopPropagation(); toggleTask(task); }}
-        className={`flex-shrink-0 w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all transform active:scale-90 ${
-          task.is_completed
-            ? 'bg-gradient-to-br from-primary to-blue-600 border-transparent shadow-xl shadow-primary/30'
-            : 'border-white/10 hover:border-primary/50 bg-white/5'
-        }`}
-      >
-        {task.is_completed && <Check size={24} className="text-white font-black" />}
-      </button>
+    {isSelectMode && (
+      <div className={`absolute top-3 left-3 z-20 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+        isSelected ? 'bg-red-500 border-red-500' : 'border-white/30 bg-black/40'
+      }`}>
+        {isSelected && <Check size={14} className="text-white" />}
+      </div>
+    )}
+    <div className={`p-6 rounded-[22px] flex items-start gap-6 bg-gradient-to-br ${task.is_completed ? 'from-white/[0.02] to-transparent' : 'from-white/[0.05] to-transparent'} ${isSelectMode ? 'pl-12' : ''}`}>
+      {!isSelectMode && (
+        <button
+          onClick={(e) => { e.stopPropagation(); toggleTask(task); }}
+          className={`flex-shrink-0 w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all transform active:scale-90 ${
+            task.is_completed
+              ? 'bg-gradient-to-br from-primary to-blue-600 border-transparent shadow-xl shadow-primary/30'
+              : 'border-white/10 hover:border-primary/50 bg-white/5'
+          }`}
+        >
+          {task.is_completed && <Check size={24} className="text-white font-black" />}
+        </button>
+      )}
 
       <div 
-        className="flex-1 min-w-0 cursor-pointer group/title"
-        onClick={() => setSelectedTask(task)}
+        className={`flex-1 min-w-0 ${isSelectMode ? 'cursor-pointer' : 'cursor-pointer group/title'}`}
+        onClick={isSelectMode ? () => onToggleSelect(task.id) : () => setSelectedTask(task)}
       >
         <h3 className={`text-2xl font-black truncate mb-2 transition-colors ${task.is_completed ? 'line-through text-muted-foreground' : 'text-white group-hover/title:text-primary'}`}>
           {task.title}
@@ -101,12 +118,14 @@ const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDat
         </div>
       </div>
 
-      <button
-        onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
-        className="p-4 text-muted-foreground/30 hover:text-red-500 hover:bg-red-500/10 rounded-2xl transition-all transform hover:scale-110"
-      >
-        <Trash2 size={24} />
-      </button>
+      {!isSelectMode && (
+        <button
+          onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
+          className="p-4 text-muted-foreground/30 hover:text-red-500 hover:bg-red-500/10 rounded-2xl transition-all transform hover:scale-110"
+        >
+          <Trash2 size={24} />
+        </button>
+      )}
     </div>
   </motion.div>
 )
@@ -129,6 +148,11 @@ function App() {
   const [listTimeframe, setListTimeframe] = useState<'today' | '7d' | '30d'>('today')
   const [listStatus, setListStatus] = useState<'active' | 'backlog' | 'done' | 'future' | 'delegated'>('active')
   const [viewMode, setViewMode] = useState<'board' | 'team' | 'profile'>('board')
+
+  // Multi-select delete state
+  const [isSelectMode, setIsSelectMode] = useState(false)
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<number>>(new Set())
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
 
   // Edit Task States
   const [isEditingTask, setIsEditingTask] = useState(false)
@@ -379,6 +403,42 @@ function App() {
     }
   }
 
+  const handleToggleSelect = (id: number) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.size === 0) return
+    setIsBulkDeleting(true)
+    try {
+      await apiFetch('/tasks/bulk-delete', { 
+        method: 'POST',
+        body: JSON.stringify([...selectedTaskIds])
+      })
+      setTasks(tasks.filter(t => !selectedTaskIds.has(t.id)))
+      setSelectedTaskIds(new Set())
+      setIsSelectMode(false)
+      showToast(`${selectedTaskIds.size} task${selectedTaskIds.size > 1 ? 's' : ''} deleted! 🗑️`)
+    } catch (error) {
+      console.error('Bulk delete error:', error)
+      showToast('Failed to delete some tasks.', 'error')
+    } finally {
+      setIsBulkDeleting(false)
+    }
+  }
+
+  const handleSelectAll = (taskList: Task[]) => {
+    if (selectedTaskIds.size === taskList.length) {
+      setSelectedTaskIds(new Set())
+    } else {
+      setSelectedTaskIds(new Set(taskList.map(t => t.id)))
+    }
+  }
+
   // --- AI Handlers ---
   const handleAiParseSubmit = async () => {
     if (!aiParseInput.trim()) return
@@ -442,7 +502,6 @@ function App() {
       const data = await apiFetch(`/ai/task-guidance/${selectedTask.id}/refine`, {
         method: 'POST',
         body: JSON.stringify({
-          previous_guidance: aiGuidance,
           user_feedback: feedback
         })
       })
@@ -1585,15 +1644,62 @@ function App() {
                   {listStatus === 'future' ? 'Future' : listStatus === 'backlog' ? 'Backlog' : listTimeframe === 'today' ? "Today's" : listTimeframe.toUpperCase()} Focus 
                   <span className={`w-2 h-2 rounded-full ${listStatus === 'backlog' ? 'bg-red-500' : listStatus === 'active' ? 'bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]' : listStatus === 'done' ? 'bg-green-500' : 'bg-blue-400'}`} />
                 </h2>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${listStatus === 'backlog' ? 'bg-red-500/10 text-red-500' : listStatus === 'active' ? 'bg-primary/10 text-primary' : listStatus === 'done' ? 'bg-green-500/10 text-green-500' : 'bg-blue-400/10 text-blue-400'}`}>
-                  {listStatus === 'backlog' ? 'BACKLOG' : listStatus.toUpperCase()}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${listStatus === 'backlog' ? 'bg-red-500/10 text-red-500' : listStatus === 'active' ? 'bg-primary/10 text-primary' : listStatus === 'done' ? 'bg-green-500/10 text-green-500' : 'bg-blue-400/10 text-blue-400'}`}>
+                    {listStatus === 'backlog' ? 'BACKLOG' : listStatus.toUpperCase()}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setIsSelectMode(!isSelectMode)
+                      setSelectedTaskIds(new Set())
+                    }}
+                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                      isSelectMode ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-white/5 text-white/40 hover:text-white border border-white/5'
+                    }`}
+                  >
+                    {isSelectMode ? 'Cancel' : 'Select'}
+                  </button>
+                </div>
               </div>
+
+              {/* Bulk Delete Toolbar */}
+              <AnimatePresence>
+                {isSelectMode && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="flex items-center justify-between px-4 py-3 glass rounded-2xl border border-red-500/30 bg-red-500/5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleSelectAll(categorizedTasks.focus)}
+                        className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-white/60 hover:text-white transition-colors"
+                      >
+                        {selectedTaskIds.size === categorizedTasks.focus.length && categorizedTasks.focus.length > 0
+                          ? <CheckSquare size={16} className="text-red-400" />
+                          : <Square size={16} />}
+                        Select All ({categorizedTasks.focus.length})
+                      </button>
+                      <span className="text-white/20">|</span>
+                      <span className="text-[11px] font-black text-red-400">{selectedTaskIds.size} selected</span>
+                    </div>
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={selectedTaskIds.size === 0 || isBulkDeleting}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95"
+                    >
+                      {isBulkDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                      Delete {selectedTaskIds.size > 0 ? `(${selectedTaskIds.size})` : ''}
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               
               <AnimatePresence mode="popLayout">
                 {categorizedTasks.focus.length > 0 ? (
                   categorizedTasks.focus.map((task) => (
-                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} />
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} isSelectMode={isSelectMode} isSelected={selectedTaskIds.has(task.id)} onToggleSelect={handleToggleSelect} />
                   ))
                 ) : (
                   <div className="text-center py-12 glass rounded-[32px] border border-white/5 opacity-50">
@@ -1614,7 +1720,7 @@ function App() {
                 
                 <AnimatePresence mode="popLayout">
                   {categorizedTasks.backlog.map((task) => (
-                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} />
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} isSelectMode={isSelectMode} isSelected={selectedTaskIds.has(task.id)} onToggleSelect={handleToggleSelect} />
                   ))}
                 </AnimatePresence>
               </div>
@@ -1631,7 +1737,7 @@ function App() {
                 
                 <AnimatePresence mode="popLayout">
                   {categorizedTasks.future.map((task) => (
-                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} />
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} isSelectMode={isSelectMode} isSelected={selectedTaskIds.has(task.id)} onToggleSelect={handleToggleSelect} />
                   ))}
                 </AnimatePresence>
               </div>

@@ -253,6 +253,25 @@ class ApiService extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> bulkDeleteTasks(List<int> taskIds) async {
+    if (!isAuthenticated || taskIds.isEmpty) return false;
+    try {
+      final response = await http.post(
+        Uri.parse("${AppConfig.baseUrl}/tasks/bulk-delete"),
+        headers: _headers,
+        body: jsonEncode(taskIds),
+      );
+
+      if (response.statusCode == 204) {
+        await fetchTasks();
+        return true;
+      }
+    } catch (e) {
+      debugPrint("Bulk Delete Error: $e");
+    }
+    return false;
+  }
+
   Future<bool> inviteMember(String email) async {
     if (!isAuthenticated) return false;
     try {
@@ -358,14 +377,13 @@ class ApiService extends ChangeNotifier {
     return null;
   }
 
-  Future<String?> refineAiGuidance(int taskId, String previousGuidance, String feedback) async {
+  Future<String?> refineAiGuidance(int taskId, String feedback) async {
     if (!isAuthenticated) return null;
     try {
       final response = await http.post(
         Uri.parse("${AppConfig.baseUrl}/ai/task-guidance/$taskId/refine"),
         headers: _headers,
         body: jsonEncode({
-          "previous_guidance": previousGuidance,
           "user_feedback": feedback,
         }),
       );

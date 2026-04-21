@@ -55,6 +55,13 @@ def smart_initialize_db():
                 tmp_session.execute(text("ALTER TABLE task ADD COLUMN ai_guidance VARCHAR"))
                 tmp_session.commit()
 
+        if "ai_guidance_history" not in task_columns:
+            print("Missing 'ai_guidance_history' in task table. Adding it gracefully...")
+            with Session(engine) as tmp_session:
+                # Use TEXT for JSON field in SQLite
+                tmp_session.execute(text("ALTER TABLE task ADD COLUMN ai_guidance_history TEXT"))
+                tmp_session.commit()
+
         # Check for new columns in User
         user_columns = [c["name"] for c in inspector.get_columns("user")]
         if "bio" not in user_columns:

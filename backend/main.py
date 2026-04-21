@@ -453,6 +453,29 @@ def delete_task(
     return None
 
 
+@app.post("/tasks/bulk-delete", status_code=204)
+def bulk_delete_tasks(
+    task_ids: List[int],
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete multiple tasks at once. Ensures user has permission for all."""
+    from sqlmodel import or_
+    
+    # Fetch all requested tasks that belong to the user (or are assigned to them)
+    statement = select(Task).where(
+        Task.id.in_(task_ids),
+        or_(Task.user_id == current_user.id, Task.assignee_id == current_user.id)
+    )
+    tasks = session.exec(statement).all()
+    
+    for task in tasks:
+        session.delete(task)
+    
+    session.commit()
+    return None
+
+
 # === AI-Powered Endpoints ===
 
 from .ai_service import parse_task_from_text, get_task_guidance, refine_task_guidance
@@ -464,7 +487,6 @@ class AIParseRequest(BaseModel):
 
 
 class AIRefineRequest(BaseModel):
-    previous_guidance: str
     user_feedback: str
 
 
@@ -533,14 +555,28 @@ async def ai_refine_guidance(
     ):
         raise HTTPException(status_code=404, detail="Task not found")
 
+    if not task.ai_guidance:
+        raise HTTPException(status_code=400, detail="No existing guidance to refine")
+
+    # Initialize/Manage History from DB
+    history = list(task.ai_guidance_history) if task.ai_guidance_history else []
+    
     try:
         refined = await refine_task_guidance(
             task_title=task.title,
             task_description=task.description,
-            previous_guidance=request.previous_guidance,
+            previous_guidance=task.ai_guidance,
             user_feedback=request.user_feedback,
+            conversation_history=history,
         )
+        
+        # Update history with this turn
+        history.append({"role": "user", "text": request.user_feedback})
+        history.append({"role": "model", "text": refined})
+        
         task.ai_guidance = refined
+        task.ai_guidance_history = history
+        
         session.add(task)
         session.commit()
         return {"task_id": task_id, "guidance": refined}

@@ -150,9 +150,12 @@ async def parse_task_from_text(
         or_client = _get_openrouter_client()
         if or_client:
             # Convert contents to OpenAI format
+            # NOTE: Gemini uses "model" for assistant role, OpenAI uses "assistant"
+            role_map = {"model": "assistant", "user": "user"}
             messages = [{"role": "system", "content": system_prompt}]
             for msg in conversation_history or []:
-                messages.append({"role": msg["role"], "content": msg["text"]})
+                openai_role = role_map.get(msg["role"], msg["role"])
+                messages.append({"role": openai_role, "content": msg["text"]})
             messages.append({"role": "user", "content": user_message})
 
             or_response = or_client.chat.completions.create(
@@ -160,7 +163,6 @@ async def parse_task_from_text(
                 messages=messages,
                 temperature=0.1,
                 max_tokens=500,
-                extra_body={"reasoning": {"enabled": True}}
             )
             raw_text = or_response.choices[0].message.content.strip()
         else:
@@ -228,7 +230,6 @@ async def get_task_guidance(
                 messages=messages,
                 temperature=0.3,
                 max_tokens=1000,
-                extra_body={"reasoning": {"enabled": True}}
             )
             return or_response.choices[0].message.content.strip()
         else:
@@ -240,6 +241,7 @@ async def refine_task_guidance(
     task_description: Optional[str],
     previous_guidance: str,
     user_feedback: str,
+    conversation_history: Optional[list] = None,
 ) -> str:
     """
     Refine previously generated task guidance based on user feedback.
@@ -258,13 +260,26 @@ User's Feedback/Preference:
 
 Please update the guidance to incorporate the user's feedback while keeping it practical and actionable."""
 
+    # Build conversation contents
+    contents = []
+    if conversation_history:
+        for msg in conversation_history:
+            contents.append(
+                types.Content(
+                    role=msg["role"], parts=[types.Part.from_text(text=msg["text"])]
+                )
+            )
+
+    # Add current user message
+    contents.append(
+        types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])
+    )
+
     # Try Gemini first
     try:
         response = client.models.generate_content(
             model=MODEL,
-            contents=[
-                types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])
-            ],
+            contents=contents,
             config=types.GenerateContentConfig(
                 system_instruction=TASK_GUIDANCE_REFINE_SYSTEM_PROMPT,
                 temperature=0.3,
@@ -276,16 +291,19 @@ Please update the guidance to incorporate the user's feedback while keeping it p
         logger.error(f"Gemini error: {e}, falling back to {FALLBACK_MODEL}")
         or_client = _get_openrouter_client()
         if or_client:
-            messages = [
-                {"role": "system", "content": TASK_GUIDANCE_REFINE_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt}
-            ]
+            # Convert contents to OpenAI format
+            role_map = {"model": "assistant", "user": "user"}
+            messages = [{"role": "system", "content": TASK_GUIDANCE_REFINE_SYSTEM_PROMPT}]
+            for msg in conversation_history or []:
+                openai_role = role_map.get(msg["role"], msg["role"])
+                messages.append({"role": openai_role, "content": msg["text"]})
+            messages.append({"role": "user", "content": user_prompt})
+
             or_response = or_client.chat.completions.create(
                 model=FALLBACK_MODEL,
                 messages=messages,
                 temperature=0.3,
                 max_tokens=1000,
-                extra_body={"reasoning": {"enabled": True}}
             )
             return or_response.choices[0].message.content.strip()
         else:

@@ -1,4 +1,4 @@
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column, JSON
 from typing import Optional, List
 from datetime import datetime, timezone
 from pydantic import field_serializer
@@ -63,6 +63,7 @@ class TaskBase(SQLModel):
     is_completed: bool = False
     assignee_id: Optional[int] = None
     ai_guidance: Optional[str] = None
+    ai_guidance_history: Optional[List[dict]] = Field(default=None, sa_column=Column(JSON))
 
 
 class Task(TaskBase, table=True):
@@ -104,6 +105,7 @@ class TaskUpdate(SQLModel):
     created_at: Optional[datetime] = None
     assignee_id: Optional[int] = None
     ai_guidance: Optional[str] = None
+    ai_guidance_history: Optional[List[dict]] = None
 
 
 class UserUpdate(SQLModel):
