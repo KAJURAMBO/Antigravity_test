@@ -120,6 +120,7 @@ class _BoardTabState extends State<BoardTab> {
               Navigator.pop(context);
               _showTaskModal(
                 context, 
+                isAiInput: true,
                 task: TaskModel(
                   title: response['title'],
                   description: response['description'],
@@ -230,7 +231,7 @@ class _BoardTabState extends State<BoardTab> {
     );
   }
 
-  void _showTaskModal(BuildContext context, {TaskModel? task}) {
+  void _showTaskModal(BuildContext context, {TaskModel? task, bool isAiInput = false}) {
     final theme = context.read<ThemeProvider>().theme;
     final isEditing = task != null && task.id != null;
     String? aiGuidance = task?.aiGuidance;
@@ -512,13 +513,13 @@ class _BoardTabState extends State<BoardTab> {
                         DateTime finalDate = selectedDate;
                         
                         // Smart logic: matches WebApp App.tsx
-                        if (selectedDateOnly.isAtSameMomentAs(todayDate)) {
-                          // If it is today, and the time is midnight (default), use current time
+                        if (!isAiInput && selectedDateOnly.isAtSameMomentAs(todayDate)) {
+                          // If it is today, manual entry, and time is midnight (default), use current time
                           if (selectedDate.hour == 0 && selectedDate.minute == 0) {
                             finalDate = now;
                           }
-                        } else if (selectedDate.hour == 0 && selectedDate.minute == 0) {
-                          // Future date with no time -> 5:30 AM (Start of Day)
+                        } else if (!isAiInput && selectedDate.hour == 0 && selectedDate.minute == 0) {
+                          // Future date, manual entry, no time -> 5:30 AM (Start of Day)
                           finalDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day, 5, 30);
                         }
 
@@ -532,6 +533,11 @@ class _BoardTabState extends State<BoardTab> {
                           Navigator.pop(context);
                         } else {
                           setModalState(() => isSaving = false);
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Failed to add mission. Please try again!'), backgroundColor: Colors.redAccent),
+                            );
+                          }
                         }
                       },
                       style: ElevatedButton.styleFrom(
