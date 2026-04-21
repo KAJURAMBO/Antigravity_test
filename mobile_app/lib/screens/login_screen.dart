@@ -99,7 +99,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 );
                               } else if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Google Sign-In failed. Check configuration!')),
+                                  SnackBar(
+                                    content: const Text('Google Sign-In failed. Check configuration!'),
+                                    action: SnackBarAction(label: 'DISMISS', onPressed: () {}),
+                                  ),
                                 );
                               }
                             },

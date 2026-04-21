@@ -56,6 +56,7 @@ class _BoardTabState extends State<BoardTab> {
           content: Text('$count task${count > 1 ? 's' : ''} deleted'),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(label: 'DISMISS', textColor: Colors.white, onPressed: () {}),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );

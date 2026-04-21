@@ -38,7 +38,9 @@ class TaskModel {
       userId: json['user_id'],
       assigneeId: json['assignee_id'],
       aiGuidance: json['ai_guidance'],
-      aiGuidanceHistory: json['ai_guidance_history'],
+      aiGuidanceHistory: json['ai_guidance_history'] is List 
+          ? List<dynamic>.from(json['ai_guidance_history']) 
+          : null,
     );
   }
 

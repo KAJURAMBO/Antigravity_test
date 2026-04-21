@@ -78,6 +78,21 @@ class Task(TaskBase, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
+    @field_validator("ai_guidance_history", mode="before")
+    @classmethod
+    def validate_history(cls, v):
+        if v == "null":
+            return None
+        if isinstance(v, str) and not v:
+            return None
+        return v
+
+    @field_serializer("ai_guidance_history")
+    def serialize_history(self, v):
+        if v == "null":
+            return None
+        return v
+
     # The creator of the task
     user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     user: Optional[User] = Relationship(
@@ -104,6 +119,13 @@ class Task(TaskBase, table=True):
 class TaskCreate(TaskBase):
     created_at: Optional[datetime] = None
 
+    @field_validator("ai_guidance_history", mode="before")
+    @classmethod
+    def validate_history(cls, v):
+        if v == "null" or v == "":
+            return None
+        return v
+
 
 class TaskUpdate(SQLModel):
     title: Optional[str] = None
@@ -113,6 +135,13 @@ class TaskUpdate(SQLModel):
     assignee_id: Optional[int] = None
     ai_guidance: Optional[str] = None
     ai_guidance_history: Optional[List[dict]] = None
+
+    @field_validator("ai_guidance_history", mode="before")
+    @classmethod
+    def validate_history(cls, v):
+        if v == "null" or v == "":
+            return None
+        return v
 
 
 class UserUpdate(SQLModel):

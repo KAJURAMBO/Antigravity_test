@@ -21,9 +21,21 @@ class _TeamTabState extends State<TeamTab> {
     setState(() => _inviting = false);
     if (success && mounted) {
       _emailController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invite Sent! 🚀')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Invite Sent! 🚀'),
+          action: SnackBarAction(label: 'DISMISS', onPressed: () {}),
+        ),
+      );
     } else {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to invite. Check email?')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to invite. Check email?'),
+            action: SnackBarAction(label: 'DISMISS', onPressed: () {}),
+          ),
+        );
+      }
     }
   }
 
