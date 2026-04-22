@@ -589,9 +589,7 @@ class _BoardTabState extends State<BoardTab> {
         }
 
         if (_listStatus == 'active') {
-          if (t.isCompleted) return false;
-          // Active = Today + Overdue/Backlog
-          return isToday || isPast;
+          return isToday && !t.isCompleted;
         }
 
         if (_listStatus == 'done' && !t.isCompleted) return false;
