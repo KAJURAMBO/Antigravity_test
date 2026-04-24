@@ -19,6 +19,7 @@ dependencies:
   google_sign_in: ^6.2.1
   firebase_core: ^3.1.1
   firebase_analytics: ^11.1.1
+  firebase_messaging: ^15.0.0
   flutter_markdown: ^0.7.2
   url_launcher: ^6.2.0
 

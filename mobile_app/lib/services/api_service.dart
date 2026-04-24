@@ -311,6 +311,29 @@ class ApiService extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> updateFcmToken(String token) async {
+    return updateSetting("fcm_token", token);
+  }
+
+  Future<bool> updateSetting(String key, dynamic value) async {
+    if (!isAuthenticated) return false;
+    try {
+      final response = await http.patch(
+        Uri.parse("${AppConfig.baseUrl}/users/me"),
+        headers: _headers,
+        body: jsonEncode({key: value}),
+      );
+      if (response.statusCode == 200) {
+        _user = UserModel.fromJson(jsonDecode(response.body));
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint("Update Setting Error: $e");
+    }
+    return false;
+  }
+
   Future<bool> uploadProfileImage(String filePath) async {
     if (!isAuthenticated) return false;
     try {

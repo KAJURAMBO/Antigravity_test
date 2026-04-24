@@ -11,6 +11,10 @@ class UserBase(SQLModel):
     google_id: str = Field(index=True, unique=True)
     bio: Optional[str] = None
     theme: Optional[str] = "dark"
+    fcm_token: Optional[str] = None
+    notify_daily_digest: bool = True
+    notify_today_tasks: bool = True
+    notify_future_tasks: bool = False
 
 
 class TeamMember(SQLModel, table=True):
@@ -62,6 +66,7 @@ class TaskBase(SQLModel):
     description: Optional[str] = None
     is_completed: bool = False
     assignee_id: Optional[int] = None
+    due_date: Optional[datetime] = None
     ai_guidance: Optional[str] = None
     ai_guidance_history: Optional[List[dict]] = Field(default=None, sa_column=Column(JSON))
 
@@ -106,7 +111,7 @@ class Task(TaskBase, table=True):
         sa_relationship_kwargs={"foreign_keys": "Task.assignee_id"},
     )
 
-    @field_serializer("created_at", "updated_at")
+    @field_serializer("created_at", "updated_at", "due_date")
     def serialize_dt(self, dt: Optional[datetime], _info):
         if dt is None:
             return None
@@ -149,6 +154,10 @@ class UserUpdate(SQLModel):
     bio: Optional[str] = None
     picture: Optional[str] = None
     theme: Optional[str] = None
+    fcm_token: Optional[str] = None
+    notify_daily_digest: Optional[bool] = None
+    notify_today_tasks: Optional[bool] = None
+    notify_future_tasks: Optional[bool] = None
 
 
 class UserRead(UserBase):

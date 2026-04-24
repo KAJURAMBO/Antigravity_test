@@ -7,6 +7,7 @@ import 'tabs/board_tab.dart';
 import 'tabs/analytics_tab.dart';
 import 'tabs/team_tab.dart';
 import 'tabs/profile_tab.dart';
+import '../services/notification_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -29,8 +30,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ApiService>().fetchTasks();
-      context.read<ApiService>().fetchMembers();
+      final apiService = context.read<ApiService>();
+      apiService.fetchTasks();
+      apiService.fetchMembers();
+      
+      // Initialize notifications
+      NotificationService.initialize(apiService);
     });
   }
 

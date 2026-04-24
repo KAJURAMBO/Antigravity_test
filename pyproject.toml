@@ -21,4 +21,5 @@ dependencies = [
     "requests>=2.32.5",
     "google-genai>=1.0.0",
     "openai>=1.61.1",
+    "firebase-admin>=6.6.0",
 ]

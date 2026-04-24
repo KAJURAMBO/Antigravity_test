@@ -27,3 +27,6 @@ build/
 
 # Static assets (local uploads)
 static/
+
+# Secrets
+backend/service-account.json

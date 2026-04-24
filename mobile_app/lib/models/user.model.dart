@@ -4,6 +4,9 @@ class UserModel {
   final String? fullName;
   final String? picture;
   final String? bio;
+  final bool notifyDailyDigest;
+  final bool notifyTodayTasks;
+  final bool notifyFutureTasks;
 
   UserModel({
     required this.id,
@@ -11,6 +14,9 @@ class UserModel {
     this.fullName,
     this.picture,
     this.bio,
+    this.notifyDailyDigest = true,
+    this.notifyTodayTasks = true,
+    this.notifyFutureTasks = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -20,6 +26,9 @@ class UserModel {
       fullName: json['full_name'],
       picture: json['picture'],
       bio: json['bio'],
+      notifyDailyDigest: json['notify_daily_digest'] ?? true,
+      notifyTodayTasks: json['notify_today_tasks'] ?? true,
+      notifyFutureTasks: json['notify_future_tasks'] ?? false,
     );
   }
 }

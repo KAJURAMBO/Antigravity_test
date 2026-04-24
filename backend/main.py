@@ -1,8 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_
 from typing import List, Optional
+from datetime import datetime, timezone
 from .database import smart_initialize_db, get_session
 from .models import (
     Task,
@@ -24,6 +25,7 @@ from fastapi import File, UploadFile
 from fastapi.staticfiles import StaticFiles
 import shutil
 import os
+from .notifications import notify_task_assigned, notify_daily_digest
 
 
 # Ensure upload directory exists
@@ -381,6 +383,18 @@ def create_task(
     session.add(db_task)
     session.commit()
     session.refresh(db_task)
+
+    # Notify assignee if it's not the creator
+    if db_task.assignee_id and db_task.assignee_id != current_user.id:
+        assignee = session.get(User, db_task.assignee_id)
+        if assignee and assignee.fcm_token:
+            notify_task_assigned(
+                assignee_fcm_token=assignee.fcm_token,
+                assigner_name=current_user.full_name or "Someone",
+                task_title=db_task.title,
+                due_date=db_task.due_date
+            )
+
     return db_task
 
 
@@ -389,8 +403,6 @@ def read_tasks(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    from sqlmodel import or_
-
     tasks = session.exec(
         select(Task).where(
             or_(Task.assignee_id == current_user.id, Task.user_id == current_user.id)
@@ -460,8 +472,6 @@ def bulk_delete_tasks(
     current_user: User = Depends(get_current_user),
 ):
     """Delete multiple tasks at once. Ensures user has permission for all."""
-    from sqlmodel import or_
-    
     # Fetch all requested tasks that belong to the user (or are assigned to them)
     statement = select(Task).where(
         Task.id.in_(task_ids),
@@ -609,4 +619,68 @@ async def ai_refine_guidance(
     except Exception as e:
         print(f"AI Refine Error: {e}")
         raise HTTPException(status_code=500, detail="AI service temporarily unavailable")
+
+# === Notification Digest Endpoint ===
+
+@app.post("/notifications/send-digests")
+async def send_all_digests(session: Session = Depends(get_session)):
+    """
+    Endpoint intended to be called by a CRON job (e.g., 4 times a day).
+    It sends task summaries to all users who have notifications enabled.
+    """
+    users = session.exec(select(User).where(User.fcm_token != None, User.notify_daily_digest == True)).all()
+    
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start.replace(hour=23, minute=59, second=59)
+    
+    sent_count = 0
+    for user in users:
+        # Get counts
+        # Today's tasks (due today or created today if no due date)
+        today_tasks = session.exec(
+            select(Task).where(
+                Task.assignee_id == user.id,
+                Task.is_completed == False,
+                or_(
+                    Task.due_date >= today_start,
+                    Task.due_date <= today_end
+                )
+            )
+        ).all()
+        
+        # Backlog (overdue or past due_date)
+        backlog_count = session.exec(
+            select(Task).where(
+                Task.assignee_id == user.id,
+                Task.is_completed == False,
+                Task.due_date < today_start
+            )
+        ).all()
+        
+        # Determine what details to show based on user settings
+        active_tasks = None
+        if user.notify_today_tasks:
+            active_tasks = [t.title for t in today_tasks]
+            
+        if user.notify_future_tasks:
+            future_tasks = session.exec(
+                select(Task).where(
+                    Task.assignee_id == user.id,
+                    Task.is_completed == False,
+                    Task.due_date > today_end
+                )
+            ).all()
+            if active_tasks is None: active_tasks = []
+            active_tasks.extend([f"[Future] {t.title}" for t in future_tasks])
+
+        notify_daily_digest(
+            fcm_token=user.fcm_token,
+            today_count=len(today_tasks),
+            backlog_count=len(backlog_count),
+            active_tasks=active_tasks
+        )
+        sent_count += 1
+        
+    return {"status": "success", "digests_sent": sent_count}
 

@@ -26,6 +26,10 @@ interface UserProfile {
   full_name: string | null
   picture: string | null
   bio: string | null
+  fcm_token?: string | null
+  notify_daily_digest: boolean
+  notify_today_tasks: boolean
+  notify_future_tasks: boolean
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -893,6 +897,21 @@ function App() {
     }
   }
 
+  const handleUpdateSetting = async (key: string, value: boolean) => {
+    if (!user) return
+    try {
+      const updated = await apiFetch('/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify({ [key]: value })
+      })
+      setUser(updated)
+      showToast('Settings synced! 📡')
+    } catch (error) {
+      console.error('Failed to update setting:', error)
+      showToast('Failed to sync setting.', 'error')
+    }
+  }
+
   const handlePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return
     const formData = new FormData()
@@ -1225,6 +1244,69 @@ function App() {
                           placeholder="What drives you? 🚀"
                           className="input-premium py-4 min-h-[120px] resize-none"
                         />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-6 pt-6 border-t border-white/5">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Notification Preferences</h4>
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-white/30 uppercase italic">
+                           <Bot size={12} className="text-primary" /> AI Managed Alerts
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="glass p-4 rounded-3xl border border-white/5 flex items-center justify-between group">
+                          <div>
+                            <p className="text-xs font-bold text-white">Daily Digest</p>
+                            <p className="text-[9px] text-white/30">Backlog & today's count</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            checked={user.notify_daily_digest}
+                            onChange={(e) => handleUpdateSetting('notify_daily_digest', e.target.checked)}
+                            className="w-10 h-6 appearance-none bg-white/5 rounded-full relative cursor-pointer checked:bg-primary transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white/40 before:rounded-full before:top-1 before:left-1 checked:before:left-5 before:transition-all"
+                          />
+                        </div>
+
+                        <div className="glass p-4 rounded-3xl border border-white/5 flex items-center justify-between group">
+                          <div>
+                            <p className="text-xs font-bold text-white">Task Delegation</p>
+                            <p className="text-[9px] text-white/30">When someone assigns you</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            checked={true}
+                            disabled
+                            className="w-10 h-6 appearance-none bg-primary/20 rounded-full relative cursor-not-allowed before:content-[''] before:absolute before:w-4 before:h-4 before:bg-primary before:rounded-full before:top-1 before:left-5 transition-all"
+                          />
+                        </div>
+
+                        <div className="glass p-4 rounded-3xl border border-white/5 flex items-center justify-between group">
+                          <div>
+                            <p className="text-xs font-bold text-white">Active Tasks</p>
+                            <p className="text-[9px] text-white/30">Reminder for today's tasks</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            checked={user.notify_today_tasks}
+                            onChange={(e) => handleUpdateSetting('notify_today_tasks', e.target.checked)}
+                            className="w-10 h-6 appearance-none bg-white/5 rounded-full relative cursor-pointer checked:bg-blue-500 transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white/40 before:rounded-full before:top-1 before:left-1 checked:before:left-5 before:transition-all"
+                          />
+                        </div>
+
+                        <div className="glass p-4 rounded-3xl border border-white/5 flex items-center justify-between group">
+                          <div>
+                            <p className="text-xs font-bold text-white">Future Planning</p>
+                            <p className="text-[9px] text-white/30">Alerts for upcoming missions</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            checked={user.notify_future_tasks}
+                            onChange={(e) => handleUpdateSetting('notify_future_tasks', e.target.checked)}
+                            className="w-10 h-6 appearance-none bg-white/5 rounded-full relative cursor-pointer checked:bg-purple-500 transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white/40 before:rounded-full before:top-1 before:left-1 checked:before:left-5 before:transition-all"
+                          />
+                        </div>
                       </div>
                     </div>
 

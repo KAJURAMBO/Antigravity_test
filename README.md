@@ -38,14 +38,16 @@ Built with industry-leading privacy standards, we ensure your personal data rema
 To ensure the application remains responsive and avoids "cold starts" on Render's free tier, we use an external pinger (e.g., [Cron-job.org](https://cron-job.org)) to keep the services awake.
 
 ### Pinger Endpoints:
+
 1.  **Backend (Critical):** `https://todo-backend-1lun.onrender.com/health`
-    *   *Interval: Every 5 minutes*
-    *   *Purpose: Keeps the API and Database connection warm.*
+    - _Interval: Every 5 minutes_
+    - _Purpose: Keeps the API and Database connection warm._
 2.  **Frontend:** `https://todo-frontend-98on.onrender.com`
-    *   *Interval: Every 10-15 minutes*
-    *   *Purpose: Keeps the web UI instantly accessible.*
+    - _Interval: Every 10-15 minutes_
+    - _Purpose: Keeps the web UI instantly accessible._
 
 ### 📊 Real-Time Status Dashboard:
+
 Check the live uptime and availability of our services here:  
 **[System Status Page](https://tt1r9jdm.status.cron-job.org/)**
 
@@ -165,12 +167,17 @@ The backend features `gemini-2.5-flash-lite` integration. To test it manually fr
 3. If you see a warning, type `allow pasting` and press Enter.
 4. Paste the following snippet to test the natural language task parser:
    ```javascript
-   const token = localStorage.getItem('token');
-   fetch('http://localhost:8000/ai/parse-task', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-     body: JSON.stringify({ message: "wash clothes tomorrow" })
-   }).then(r => r.json()).then(console.log);
+   const token = localStorage.getItem("token");
+   fetch("http://localhost:8000/ai/parse-task", {
+     method: "POST",
+     headers: {
+       "Content-Type": "application/json",
+       Authorization: `Bearer ${token}`,
+     },
+     body: JSON.stringify({ message: "wash clothes tomorrow" }),
+   })
+     .then((r) => r.json())
+     .then(console.log);
    ```
 
 ### 🧹 Troubleshooting: Duplicate Apps on Emulator
@@ -214,6 +221,8 @@ The application hosts its mandatory legal documentation publicly to comply with 
 - **Smart Schema Sync:** Intelligent backend initialization that auto-detects and fixes database mismatches.
 - **Global Persistence:** Powered by Aiven PostgreSQL—your tasks are safe anywhere in the world.
 - **Real-Time Analytics:** Interactive charts showing your weekly growth and completion trends.
+- **Instant Delegation Notifications:** Real-time push notifications when someone assigns you a task, including who assigned it and the deadline.
+- **Customizable Notification Toggles:** Granular control over daily digests, today's tasks, and future task alerts.
 
 ## 🛣️ Upcoming Features
 
@@ -221,3 +230,27 @@ The application hosts its mandatory legal documentation publicly to comply with 
 - **Premium Glassmorphism:** State-of-the-art UI with frosted-glass effects and interactive lighting.
 - **Toast Notifications:** Smooth confirmation popups for every major action.
 - **Automated Deployment:** Integrated `render.yaml` blueprint for one-click infra setup.
+- **Scheduled Daily Digest:** Automated task summaries sent 4x daily to keep you on track with pending and backlog items.
+
+## IOS notification work pending
+
+🍎 iOS Mandatory Setup Checklist:
+GoogleService-Info.plist:
+
+Download this from your Firebase Console.
+Open your project in Xcode.
+Drag this file into the Runner folder (choose "Copy items if needed").
+Enable Capabilities:
+
+In Xcode, go to the Runner target settings.
+Go to Signing & Capabilities.
+Click + Capability and add:
+Push Notifications
+Background Modes (then check the box for Remote notifications).
+Update Podfile:
+
+I'll check your Podfile right now to ensure it's ready for Firebase.
+AppDelegate Code:
+
+I will update your ios/Runner/AppDelegate.swift now to ensure Firebase initializes correctly on boot.
+Let me update your iOS files now.
