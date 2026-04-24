@@ -10,6 +10,8 @@ class TaskModel {
   final String? aiGuidance;
   final List<dynamic>? aiGuidanceHistory;
 
+  final DateTime? dueDate;
+
   TaskModel({
     this.id,
     required this.title,
@@ -17,6 +19,7 @@ class TaskModel {
     required this.isCompleted,
     required this.createdAt,
     this.updatedAt,
+    this.dueDate,
     this.userId,
     this.assigneeId,
     this.aiGuidance,
@@ -35,6 +38,9 @@ class TaskModel {
       updatedAt: json['updated_at'] != null 
           ? DateTime.parse(json['updated_at']).toLocal() 
           : null,
+      dueDate: json['due_date'] != null 
+          ? DateTime.parse(json['due_date']).toLocal() 
+          : null,
       userId: json['user_id'],
       assigneeId: json['assignee_id'],
       aiGuidance: json['ai_guidance'],
@@ -51,6 +57,7 @@ class TaskModel {
       'description': description,
       'is_completed': isCompleted,
       'created_at': createdAt.toIso8601String(),
+      'due_date': dueDate?.toIso8601String(),
       'assignee_id': assigneeId,
       'ai_guidance': aiGuidance,
       'ai_guidance_history': aiGuidanceHistory,

@@ -386,6 +386,7 @@ function App() {
           description: newDescription || null,
           is_completed: false,
           created_at: finalCreatedAt,
+          due_date: finalCreatedAt, // Use the already calculated UTC date
           assignee_id: assigneeId || null
         })
       })

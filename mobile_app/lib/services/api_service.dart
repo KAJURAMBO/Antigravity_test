@@ -187,6 +187,7 @@ class ApiService extends ChangeNotifier {
   Future<bool> createTask(String title, String? description, DateTime? createdAt, int? assigneeId) async {
     if (!isAuthenticated) return false;
     try {
+      final dt = createdAt ?? DateTime.now();
       final response = await http.post(
         Uri.parse("${AppConfig.baseUrl}/tasks/"),
         headers: _headers,
@@ -194,7 +195,8 @@ class ApiService extends ChangeNotifier {
           "title": title,
           "description": description,
           "is_completed": false,
-          "created_at": (createdAt ?? DateTime.now()).toUtc().toIso8601String(),
+          "created_at": dt.toUtc().toIso8601String(),
+          "due_date": dt.toUtc().toIso8601String(),
           if (assigneeId != null) "assignee_id": assigneeId,
         }),
       );

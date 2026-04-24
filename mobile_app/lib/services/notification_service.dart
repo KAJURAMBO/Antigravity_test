@@ -35,7 +35,65 @@ class NotificationService {
     // 5. Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('Received foreground message: ${message.notification?.title}');
-      // You can show a local notification here or a SnackBar
+      
+      // AUTO-REFRESH: Fetch tasks immediately so they appear in the list
+      apiService.fetchTasks();
+
+      // Show a SnackBar or Dialog
+      if (message.notification != null) {
+        final context = ScaffoldMessenger.maybeOf(navigatorKey.currentContext!);
+        if (context != null) {
+          context.showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(message.notification!.title ?? 'Notification', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(message.notification!.body ?? ''),
+                ],
+              ),
+              backgroundColor: Colors.indigoAccent,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'VIEW', 
+                textColor: Colors.white, 
+                onPressed: () => _handleNotificationClick(message.data, apiService),
+              ),
+            ),
+          );
+        }
+      }
+    });
+
+    // 6. Handle notification clicks (Background -> Foreground)
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      _handleNotificationClick(message.data, apiService);
+    });
+
+    // 7. Handle initial message (Killed -> Foreground)
+    _fcm.getInitialMessage().then((message) {
+      if (message != null) {
+        _handleNotificationClick(message.data, apiService);
+      }
     });
   }
+
+  static void _handleNotificationClick(Map<String, dynamic> data, ApiService apiService) async {
+    if (data.containsKey('task_id')) {
+      final taskId = int.tryParse(data['task_id'].toString());
+      if (taskId != null) {
+        // Force a refresh to ensure the task is in memory
+        await apiService.fetchTasks();
+        
+        // Navigation logic: Open the task detail if possible
+        // For now, we refresh everything, but you could add a jump-to-task logic here.
+        debugPrint("Navigating to task ID: $taskId");
+      }
+    }
+  }
+
+  // Global navigator key to access context for SnackBars
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 }

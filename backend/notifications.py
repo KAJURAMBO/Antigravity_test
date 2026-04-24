@@ -66,9 +66,14 @@ def send_push_notification(fcm_token: str, title: str, body: str, data: Optional
         print(f"Error/Reason: {e}")
         print(f"------------------------------------")
 
-def notify_task_assigned(assignee_fcm_token: str, assigner_name: str, task_title: str, due_date: Optional[datetime]):
+def notify_task_assigned(assignee_fcm_token: str, assigner_name: str, task_title: str, task_id: int, due_date: Optional[datetime]):
     """Triggered when someone delegates a task."""
-    due_str = due_date.strftime("%Y-%m-%d %H:%M") if due_date else "No deadline"
+    from datetime import timedelta
+    
+    # Adjust for IST (+5:30) for display purposes
+    local_due = due_date + timedelta(hours=5, minutes=30) if due_date else None
+    due_str = local_due.strftime("%I:%M %p") if local_due else "No deadline"
+    
     title = "New Task Assigned! 📋"
     body = f"{assigner_name} assigned you: '{task_title}'. Due: {due_str}"
     
@@ -76,7 +81,7 @@ def notify_task_assigned(assignee_fcm_token: str, assigner_name: str, task_title
         fcm_token=assignee_fcm_token,
         title=title,
         body=body,
-        data={"type": "task_assigned", "task_title": task_title}
+        data={"type": "task_assigned", "task_title": task_title, "task_id": str(task_id)}
     )
 
 def notify_daily_digest(fcm_token: str, today_count: int, backlog_count: int, active_tasks: Optional[List[str]] = None):

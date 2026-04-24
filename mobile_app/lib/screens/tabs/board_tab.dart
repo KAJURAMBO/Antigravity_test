@@ -569,8 +569,11 @@ class _BoardTabState extends State<BoardTab> {
     return tasks.where((t) {
       final isAssignedToMe = t.assigneeId == user?.id || (t.assigneeId == null && t.userId == user?.id);
       final isDelegatedByMe = t.userId == user?.id && t.assigneeId != null && t.assigneeId != user?.id;
-      final localDate = t.createdAt.toLocal();
-      final taskDateOnly = DateTime(localDate.year, localDate.month, localDate.day);
+      
+      // Use due_date for logic if it exists, otherwise fall back to createdAt
+      final targetDate = (t.dueDate ?? t.createdAt).toLocal();
+      final taskDateOnly = DateTime(targetDate.year, targetDate.month, targetDate.day);
+      
       final isToday = taskDateOnly == today;
       final isPast = taskDateOnly.isBefore(today);
       final isFuture = taskDateOnly.isAfter(today);
@@ -608,7 +611,7 @@ class _BoardTabState extends State<BoardTab> {
       }
       return true;
     }).toList()
-    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    ..sort((a, b) => (b.dueDate ?? b.createdAt).compareTo(a.dueDate ?? a.createdAt));
   }
 
   @override
@@ -820,7 +823,9 @@ class _BoardTabState extends State<BoardTab> {
                                         if (task.assigneeId == apiService.user?.id)
                                           _buildPill(
                                             icon: Icons.person,
-                                            text: task.userId == apiService.user?.id ? "Assigned by: SELF" : "Assigned by Operator",
+                                            text: task.userId == apiService.user?.id 
+                                              ? "Assigned by: SELF" 
+                                              : "Assigned by: ${apiService.members.where((m) => m.id == task.userId).firstOrNull?.fullName ?? 'Operator'}",
                                             color: Colors.purpleAccent.withOpacity(0.2),
                                             textColor: Colors.purpleAccent,
                                             theme: theme,

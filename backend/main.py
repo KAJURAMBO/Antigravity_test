@@ -387,13 +387,18 @@ def create_task(
     # Notify assignee if it's not the creator
     if db_task.assignee_id and db_task.assignee_id != current_user.id:
         assignee = session.get(User, db_task.assignee_id)
+        print(f"DEBUG: Task assigned to {assignee.id if assignee else 'None'}. FCM Token: {assignee.fcm_token if assignee else 'None'}")
         if assignee and assignee.fcm_token:
+            print(f"DEBUG: Sending notification to token: {assignee.fcm_token[:10]}...")
             notify_task_assigned(
                 assignee_fcm_token=assignee.fcm_token,
                 assigner_name=current_user.full_name or "Someone",
                 task_title=db_task.title,
+                task_id=db_task.id,
                 due_date=db_task.due_date
             )
+        else:
+            print("DEBUG: Notification NOT sent because assignee or fcm_token is missing.")
 
     return db_task
 
@@ -438,6 +443,9 @@ def update_task(
     ):
         raise HTTPException(status_code=404, detail="Task not found")
 
+    # Check if assignee changed to notify the new one
+    old_assignee_id = task.assignee_id
+    
     task_data = task_update.model_dump(exclude_unset=True)
     for key, value in task_data.items():
         setattr(task, key, value)
@@ -445,6 +453,20 @@ def update_task(
     session.add(task)
     session.commit()
     session.refresh(task)
+
+    # If assignee changed and it's not the person who made the change
+    if task.assignee_id != old_assignee_id and task.assignee_id != current_user.id:
+        assignee = session.get(User, task.assignee_id)
+        if assignee and assignee.fcm_token:
+            print(f"DEBUG: Notifying new assignee after update: {assignee.id}")
+            notify_task_assigned(
+                assignee_fcm_token=assignee.fcm_token,
+                assigner_name=current_user.full_name or "Someone",
+                task_title=task.title,
+                task_id=task.id,
+                due_date=task.due_date
+            )
+    
     return task
 
 
