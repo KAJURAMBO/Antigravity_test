@@ -796,7 +796,7 @@ class _BoardTabState extends State<BoardTab> {
       final isFuture = taskDateOnly.isAfter(today);
 
       if (_listStatus == 'delegated') {
-        if (!isDelegatedByMe) return false;
+        return isDelegatedByMe;
       } else {
         if (!isAssignedToMe) return false;
 

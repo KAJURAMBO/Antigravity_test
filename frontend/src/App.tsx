@@ -877,7 +877,7 @@ function App() {
       const isDelegatedByMe = t.user_id === user?.id && t.assignee_id && t.assignee_id !== user?.id
 
       if (listStatus === 'delegated') {
-        if (!isDelegatedByMe) return false
+        return isDelegatedByMe
       } else {
         // All other views (Active/Backlog/Done/Future) only show tasks assigned to me
         if (!isAssignedToMe) return false
