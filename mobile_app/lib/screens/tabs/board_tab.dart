@@ -64,6 +64,30 @@ class _BoardTabState extends State<BoardTab> {
         ),
       );
     }
+  Future<void> _bulkUpdateStatus(BuildContext context, bool isCompleted) async {
+    if (_selectedIds.isEmpty) return;
+    final count = _selectedIds.length;
+    final api = context.read<ApiService>();
+
+    final success = await api.bulkUpdateTasks(_selectedIds.toList(), isCompleted);
+
+    if (success && mounted) {
+      setState(() {
+        _isSelectMode = false;
+        _selectedIds.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$count task${count > 1 ? \'s\' : \'\'} marked as ${isCompleted ? \'done\' : \'active\'}'),
+          backgroundColor: Colors.emerald,
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+              label: 'DISMISS', textColor: Colors.white, onPressed: () {}),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   void _confirmDelete(BuildContext context, int taskId) {
@@ -851,6 +875,17 @@ class _BoardTabState extends State<BoardTab> {
         elevation: 0,
         actions: [
           if (_isSelectMode) ...[
+            IconButton(
+              icon: Icon(
+                  _listStatus == 'done'
+                      ? Icons.unpublished_rounded
+                      : Icons.check_circle_rounded,
+                  color: Colors.emerald),
+              tooltip: _listStatus == 'done' ? 'Mark as active' : 'Mark as done',
+              onPressed: _selectedIds.isEmpty
+                  ? null
+                  : () => _bulkUpdateStatus(context, _listStatus != 'done'),
+            ),
             IconButton(
               icon: const Icon(Icons.delete_sweep_rounded,
                   color: Colors.redAccent),

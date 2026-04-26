@@ -157,6 +157,7 @@ function App() {
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<number>>(new Set())
   const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false)
 
   // Edit Task States
   const [isEditingTask, setIsEditingTask] = useState(false)
@@ -449,6 +450,34 @@ function App() {
       showToast('Failed to delete some tasks.', 'error')
     } finally {
       setIsBulkDeleting(false)
+    }
+  }
+
+  const handleBulkUpdateStatus = async (isCompleted: boolean) => {
+    if (selectedTaskIds.size === 0) return
+    setIsBulkUpdating(true)
+    try {
+      const updatedTasks = await apiFetch('/tasks/bulk-update', { 
+        method: 'POST',
+        body: JSON.stringify({
+          task_ids: [...selectedTaskIds],
+          is_completed: isCompleted
+        })
+      })
+      
+      setTasks(tasks.map(t => {
+        const updated = updatedTasks.find((u: Task) => u.id === t.id)
+        return updated ? { ...t, is_completed: updated.is_completed } : t
+      }))
+      
+      setSelectedTaskIds(new Set())
+      setIsSelectMode(false)
+      showToast(`${selectedTaskIds.size} task${selectedTaskIds.size > 1 ? 's' : ''} marked as ${isCompleted ? 'done' : 'active'}! 🎉`)
+    } catch (error) {
+      console.error('Bulk update error:', error)
+      showToast('Failed to update tasks.', 'error')
+    } finally {
+      setIsBulkUpdating(false)
     }
   }
 
@@ -1864,14 +1893,25 @@ function App() {
                       <span className="text-white/20">|</span>
                       <span className="text-[11px] font-black text-red-400">{selectedTaskIds.size} selected</span>
                     </div>
-                    <button
-                      onClick={handleBulkDelete}
-                      disabled={selectedTaskIds.size === 0 || isBulkDeleting}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95"
-                    >
-                      {isBulkDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                      Delete {selectedTaskIds.size > 0 ? `(${selectedTaskIds.size})` : ''}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleBulkUpdateStatus(listStatus !== 'done')}
+                        disabled={selectedTaskIds.size === 0 || isBulkUpdating}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95"
+                      >
+                        {isBulkUpdating ? <Loader2 size={14} className="animate-spin" /> : <CheckSquare size={14} />}
+                        Mark as {listStatus === 'done' ? 'Active' : 'Done'} {selectedTaskIds.size > 0 ? `(${selectedTaskIds.size})` : ''}
+                      </button>
+
+                      <button
+                        onClick={handleBulkDelete}
+                        disabled={selectedTaskIds.size === 0 || isBulkDeleting}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95"
+                      >
+                        {isBulkDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                        Delete {selectedTaskIds.size > 0 ? `(${selectedTaskIds.size})` : ''}
+                      </button>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

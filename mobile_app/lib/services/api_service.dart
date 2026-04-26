@@ -271,6 +271,25 @@ class ApiService extends ChangeNotifier {
     } catch (e) {
       debugPrint("Bulk Delete Error: $e");
     }
+  Future<bool> bulkUpdateTasks(List<int> taskIds, bool isCompleted) async {
+    if (!isAuthenticated || taskIds.isEmpty) return false;
+    try {
+      final response = await http.post(
+        Uri.parse("${AppConfig.baseUrl}/tasks/bulk-update"),
+        headers: _headers,
+        body: jsonEncode({
+          'task_ids': taskIds,
+          'is_completed': isCompleted,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        await fetchTasks();
+        return true;
+      }
+    } catch (e) {
+      debugPrint("Bulk Update Error: $e");
+    }
     return false;
   }
 

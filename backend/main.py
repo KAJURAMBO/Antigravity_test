@@ -508,6 +508,34 @@ def bulk_delete_tasks(
     return None
 
 
+class BulkUpdatePayload(BaseModel):
+    task_ids: List[int]
+    is_completed: bool
+
+@app.post("/tasks/bulk-update", response_model=List[Task])
+def bulk_update_tasks(
+    payload: BulkUpdatePayload,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Update multiple tasks status at once. Ensures user has permission for all."""
+    statement = select(Task).where(
+        Task.id.in_(payload.task_ids),
+        or_(Task.user_id == current_user.id, Task.assignee_id == current_user.id)
+    )
+    tasks = session.exec(statement).all()
+    
+    for task in tasks:
+        task.is_completed = payload.is_completed
+        session.add(task)
+        
+    session.commit()
+    for task in tasks:
+        session.refresh(task)
+        
+    return tasks
+
+
 # === AI-Powered Endpoints ===
 
 from .ai_service import parse_task_from_text, get_task_guidance, refine_task_guidance
