@@ -44,10 +44,7 @@ jobs:
           echo "storeFile=../app/upload-keystore.jks" >> mobile_app/android/key.properties
 
       - name: Build Release App Bundle (.aab)
-        run: |
-          flutter build appbundle --release \
-            --build-name=${GITHUB_REF_NAME#v} \
-            --build-number=${{ github.run_number }}
+        run: flutter build appbundle --release
         working-directory: mobile_app
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
