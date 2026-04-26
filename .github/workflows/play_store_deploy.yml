@@ -51,6 +51,11 @@ jobs:
           ANDROID_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
+      - name: Create Release Notes
+        run: |
+          mkdir -p mobile_app/android/whatsnew
+          git log -1 --pretty=%s > mobile_app/android/whatsnew/whatsnew-en-US
+
       - name: Upload to Google Play
         uses: r0adkll/upload-google-play@v1
         with:
@@ -59,3 +64,4 @@ jobs:
           releaseFiles: mobile_app/build/app/outputs/bundle/release/app-release.aab
           track: alpha # alpha = Closed Testing
           status: completed
+          whatsNewDirectory: mobile_app/android/whatsnew
