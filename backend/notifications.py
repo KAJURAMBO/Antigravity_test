@@ -65,6 +65,7 @@ def send_push_notification(fcm_token: str, title: str, body: str, data: Optional
         print(f"Body: {body}")
         print(f"Error/Reason: {e}")
         print(f"------------------------------------")
+        raise e
 
 def notify_task_assigned(assignee_fcm_token: str, assigner_name: str, task_title: str, task_id: int, due_date: Optional[datetime]):
     """Triggered when someone delegates a task."""

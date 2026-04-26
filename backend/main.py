@@ -702,14 +702,20 @@ async def send_all_digests(session: Session = Depends(get_session)):
             if active_tasks is None: active_tasks = []
             active_tasks.extend([f"[Future] {t.title}" for t in future_tasks])
             
-        notify_daily_digest(
-            fcm_token=user.fcm_token,
-            today_count=len(today_tasks) if user.notify_today_tasks else None,
-            backlog_count=len(backlog_tasks),
-            future_count=len(future_tasks) if user.notify_future_tasks else None,
-            done_count=len(done_tasks),
-            active_tasks=active_tasks
-        )
+        try:
+            notify_daily_digest(
+                fcm_token=user.fcm_token,
+                today_count=len(today_tasks) if user.notify_today_tasks else None,
+                backlog_count=len(backlog_tasks),
+                future_count=len(future_tasks) if user.notify_future_tasks else None,
+                done_count=len(done_tasks),
+                active_tasks=active_tasks
+            )
+        except Exception as e:
+            if "Requested entity was not found" in str(e) or "Unregistered" in str(e):
+                user.fcm_token = None
+                session.add(user)
+                session.commit()
         sent_count += 1
         
     return {"status": "success", "digests_sent": sent_count}
