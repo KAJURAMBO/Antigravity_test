@@ -130,13 +130,48 @@ flutter build appbundle --debug
 ```
 
 - **Release AAB**: `mobile_app/build/app/outputs/bundle/release/app-release.aab`
-- **Debug AAB**: `mobile_app/build/app/outputs/bundle/debug/app-debug.aab`
+- **Debug AAB**: `mobile_app/build/app/outputs/bundle/debug/app-release.aab`
 
 > [!TIP]
 > **APK vs AAB?**
 >
 > - Use **APK** to install directly on a phone or emulator (side-loading).
 > - Use **AAB** (Android App Bundle) to publish on the **Google Play Store** — it's smaller and optimized per device. Play Store does NOT accept APK files anymore.
+
+## 🤖 Automated App Deployment (CI/CD to Google Play)
+
+We utilize GitHub Actions to automatically package and distribute internal/alpha mobile releases straight to your testers.
+
+### 1. Incrementing Version Numbers
+To push updates, always increment your release identifiers in [mobile_app/pubspec.yaml](file:///d:/Antigravity%20test/mobile_app/pubspec.yaml):
+```yaml
+version: 1.2.9+24
+```
+- **`1.2.9` (Version Name):** App version displayed to users.
+- **`24` (Version Code):** Internal index. **Must be strictly greater than the previous build!**
+
+### 2. Triggering the Pipeline
+Publishing relies on standardized version tags:
+```powershell
+# 1. Apply a semantic tag
+git tag v1.2.9
+
+# 2. Push to GitHub
+git push origin v1.2.9
+```
+
+### 3. Setting up Secrets (Base64 JSON parsing)
+If keys rotate, base64 encodings supply credentials safely under GitHub Settings -> Secrets -> Actions:
+
+- **Play Service Accounts (`PLAY_SERVICE_ACCOUNT_JSON`):**
+  - **Windows (PowerShell):**
+    ```powershell
+    [Convert]::ToBase64String([IO.File]::ReadAllBytes("play-store-key.json"))
+    ```
+  - **Linux/Mac:**
+    ```bash
+    base64 -w 0 play-store-key.json
+    ```
 
 > [!IMPORTANT]
 > **Release signing is required for Play Store.** The release keystore (`release-key.jks`) and `key.properties` must exist in `android/app/` and `android/` respectively. Never commit these files to Git.
