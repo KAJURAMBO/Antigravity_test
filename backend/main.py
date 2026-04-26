@@ -658,48 +658,56 @@ async def send_all_digests(session: Session = Depends(get_session)):
     
     sent_count = 0
     for user in users:
-        # Get counts
-        # Today's tasks (due today or created today if no due date)
-        today_tasks = session.exec(
-            select(Task).where(
-                Task.assignee_id == user.id,
-                Task.is_completed == False,
-                or_(
-                    Task.due_date >= today_start,
-                    Task.due_date <= today_end
-                )
-            )
+        all_tasks = session.exec(
+            select(Task).where(Task.assignee_id == user.id)
         ).all()
         
-        # Backlog (overdue or past due_date)
-        backlog_count = session.exec(
-            select(Task).where(
-                Task.assignee_id == user.id,
-                Task.is_completed == False,
-                Task.due_date < today_start
-            )
-        ).all()
+        today_tasks = []
+        backlog_tasks = []
+        future_tasks = []
+        done_tasks = []
         
-        # Determine what details to show based on user settings
+        for t in all_tasks:
+            if t.is_completed:
+                done_tasks.append(t)
+            else:
+                if t.due_date:
+                    t_due = t.due_date
+                    if t_due.tzinfo is None:
+                        t_due = t_due.replace(tzinfo=timezone.utc)
+                        
+                    if t_due < today_start:
+                        backlog_tasks.append(t)
+                    elif t_due > today_end:
+                        future_tasks.append(t)
+                    else:
+                        today_tasks.append(t)
+                else:
+                    t_created = t.created_at
+                    if t_created.tzinfo is None:
+                        t_created = t_created.replace(tzinfo=timezone.utc)
+                        
+                    if t_created < today_start:
+                        backlog_tasks.append(t)
+                    elif t_created > today_end:
+                        future_tasks.append(t)
+                    else:
+                        today_tasks.append(t)
+                        
         active_tasks = None
         if user.notify_today_tasks:
             active_tasks = [t.title for t in today_tasks]
             
         if user.notify_future_tasks:
-            future_tasks = session.exec(
-                select(Task).where(
-                    Task.assignee_id == user.id,
-                    Task.is_completed == False,
-                    Task.due_date > today_end
-                )
-            ).all()
             if active_tasks is None: active_tasks = []
             active_tasks.extend([f"[Future] {t.title}" for t in future_tasks])
-
+            
         notify_daily_digest(
             fcm_token=user.fcm_token,
-            today_count=len(today_tasks),
-            backlog_count=len(backlog_count),
+            today_count=len(today_tasks) if user.notify_today_tasks else None,
+            backlog_count=len(backlog_tasks),
+            future_count=len(future_tasks) if user.notify_future_tasks else None,
+            done_count=len(done_tasks),
             active_tasks=active_tasks
         )
         sent_count += 1

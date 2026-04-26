@@ -84,14 +84,29 @@ def notify_task_assigned(assignee_fcm_token: str, assigner_name: str, task_title
         data={"type": "task_assigned", "task_title": task_title, "task_id": str(task_id)}
     )
 
-def notify_daily_digest(fcm_token: str, today_count: int, backlog_count: int, active_tasks: Optional[List[str]] = None):
+def notify_daily_digest(fcm_token: str, today_count: Optional[int] = None, backlog_count: Optional[int] = None, future_count: Optional[int] = None, done_count: Optional[int] = None, active_tasks: Optional[List[str]] = None):
     """Triggered by the digest scheduler."""
     title = "Your Task Digest 📅"
-    body = f"Today: {today_count} tasks | Backlog: {backlog_count} tasks."
+    
+    parts = []
+    if today_count is not None:
+        parts.append(f"Today: {today_count} tasks")
+    if backlog_count is not None:
+        parts.append(f"Backlog: {backlog_count} tasks")
+    if future_count is not None:
+        parts.append(f"Future: {future_count} tasks")
+    if done_count is not None:
+        parts.append(f"Done: {done_count} tasks")
+        
+    body = " | ".join(parts)
+    if body:
+        body += "."
+    else:
+        body = "You're all caught up! No task updates."
     
     if active_tasks:
-        task_list = ", ".join(active_tasks[:3])
-        if len(active_tasks) > 3:
+        task_list = ", ".join(active_tasks[:5])
+        if len(active_tasks) > 5:
             task_list += "..."
         body += f"\nActive: {task_list}"
         
