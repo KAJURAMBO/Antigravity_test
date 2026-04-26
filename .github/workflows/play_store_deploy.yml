@@ -33,6 +33,13 @@ jobs:
       - name: Decode Android Keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > mobile_app/android/app/upload-keystore.jks
 
+      - name: Create key.properties
+        run: |
+          echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" > mobile_app/android/key.properties
+          echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}" >> mobile_app/android/key.properties
+          echo "keyAlias=${{ secrets.ANDROID_KEYSTORE_ALIAS }}" >> mobile_app/android/key.properties
+          echo "storeFile=../app/upload-keystore.jks" >> mobile_app/android/key.properties
+
       - name: Build Release App Bundle (.aab)
         run: |
           flutter build appbundle --release \
