@@ -271,6 +271,9 @@ class ApiService extends ChangeNotifier {
     } catch (e) {
       debugPrint("Bulk Delete Error: $e");
     }
+    return false;
+  }
+
   Future<bool> bulkUpdateTasks(List<int> taskIds, bool isCompleted) async {
     if (!isAuthenticated || taskIds.isEmpty) return false;
     try {

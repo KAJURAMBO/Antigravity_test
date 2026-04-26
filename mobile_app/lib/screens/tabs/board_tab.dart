@@ -64,6 +64,8 @@ class _BoardTabState extends State<BoardTab> {
         ),
       );
     }
+  }
+
   Future<void> _bulkUpdateStatus(BuildContext context, bool isCompleted) async {
     if (_selectedIds.isEmpty) return;
     final count = _selectedIds.length;
@@ -78,8 +80,8 @@ class _BoardTabState extends State<BoardTab> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$count task${count > 1 ? \'s\' : \'\'} marked as ${isCompleted ? \'done\' : \'active\'}'),
-          backgroundColor: Colors.emerald,
+          content: Text('$count tasks marked as ${isCompleted ? "done" : "active"}'),
+          backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
           action: SnackBarAction(
               label: 'DISMISS', textColor: Colors.white, onPressed: () {}),
@@ -880,7 +882,7 @@ class _BoardTabState extends State<BoardTab> {
                   _listStatus == 'done'
                       ? Icons.unpublished_rounded
                       : Icons.check_circle_rounded,
-                  color: Colors.emerald),
+                  color: Colors.green),
               tooltip: _listStatus == 'done' ? 'Mark as active' : 'Mark as done',
               onPressed: _selectedIds.isEmpty
                   ? null
