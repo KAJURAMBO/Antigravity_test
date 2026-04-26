@@ -828,30 +828,58 @@ function App() {
   const myTasks = useMemo(() => tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id)), [tasks, user])
   const delegatedTasks = useMemo(() => tasks.filter(t => t.user_id === user?.id && t.assignee_id && t.assignee_id !== user?.id), [tasks, user])
 
-  const completedTasks = myTasks.filter(t => t.is_completed).length
-  const activeTasksTotal = myTasks.filter(t => !t.is_completed)
-  
-  const todayDateStr = new Date().toLocaleDateString()
-  const activeTodayTasks = activeTasksTotal.filter(t => new Date(t.created_at).toLocaleDateString() === todayDateStr)
-  // Backlog = Past Only (Exclude Today AND Future)
-  const backlogTasks = activeTasksTotal.filter(t => {
-    const d = new Date(t.created_at)
-    d.setHours(0,0,0,0)
-    const today = new Date()
-    today.setHours(0,0,0,0)
-    return d.getTime() < today.getTime()
-  })
-  const futureTasks = activeTasksTotal.filter(t => {
-    const d = new Date(t.created_at)
-    d.setHours(0,0,0,0)
-    const today = new Date()
-    today.setHours(0,0,0,0)
-    return d.getTime() > today.getTime()
-  })
-  
-  const activeTodayCount = activeTodayTasks.length
-  const backlogCount = backlogTasks.length
-  const futureCount = futureTasks.length
+  const { completedTasks, activeTodayCount, backlogCount, futureCount, backlogTasks, activeTodayTasks, futureTasks } = useMemo(() => {
+    const now = new Date()
+    const startDate = new Date()
+    startDate.setHours(0, 0, 0, 0)
+
+    if (analyticsTimeframe === '7d') {
+      startDate.setDate(startDate.getDate() - 6)
+    } else if (analyticsTimeframe === '30d') {
+      startDate.setDate(startDate.getDate() - 29)
+    }
+
+    const relevantTasks = myTasks.filter(t => {
+      if (analyticsTimeframe === 'all') return true
+      const d = new Date(t.created_at)
+      if (analyticsTimeframe === 'today') {
+        return d.toLocaleDateString() === now.toLocaleDateString()
+      }
+      return d >= startDate && d <= now
+    })
+
+    const done = relevantTasks.filter(t => t.is_completed).length
+    
+    const actToday = relevantTasks.filter(t => !t.is_completed && new Date(t.created_at).toLocaleDateString() === now.toLocaleDateString())
+    const futTasks = relevantTasks.filter(t => {
+      if (t.is_completed) return false
+      const d = new Date(t.created_at)
+      d.setHours(0,0,0,0)
+      const checkDate = new Date()
+      checkDate.setHours(0,0,0,0)
+      return d.getTime() > checkDate.getTime()
+    })
+
+    // Backlog accumulates all outstanding incomplete tasks from all-time (prior to today)
+    const bTasks = myTasks.filter(t => {
+      if (t.is_completed) return false
+      const d = new Date(t.created_at)
+      d.setHours(0,0,0,0)
+      const today = new Date()
+      today.setHours(0,0,0,0)
+      return d.getTime() < today.getTime()
+    })
+
+    return {
+      completedTasks: done,
+      activeTodayCount: actToday.length,
+      backlogCount: bTasks.length,
+      futureCount: futTasks.length,
+      backlogTasks: bTasks,
+      activeTodayTasks: actToday,
+      futureTasks: futTasks
+    }
+  }, [myTasks, analyticsTimeframe])
 
   const [profileSaving, setProfileSaving] = useState(false)
 

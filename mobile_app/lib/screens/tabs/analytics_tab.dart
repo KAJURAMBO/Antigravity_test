@@ -53,7 +53,11 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
           DateTime(targetDate.year, targetDate.month, targetDate.day);
       return !t.isCompleted && taskDateOnly == today;
     }).length;
-    int backlogCount = tasks.where((t) {
+    int backlogCount = allTasks.where((t) {
+      final isAssignedToMe = t.assigneeId == apiService.user?.id ||
+          (t.assigneeId == null && t.userId == apiService.user?.id);
+      if (!isAssignedToMe) return false;
+
       final targetDate = (t.dueDate ?? t.createdAt).toLocal();
       final taskDateOnly =
           DateTime(targetDate.year, targetDate.month, targetDate.day);
