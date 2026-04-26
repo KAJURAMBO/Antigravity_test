@@ -147,7 +147,7 @@ function App() {
   const [longLoading, setLongLoading] = useState(false)
   const [devUsername, setDevUsername] = useState('')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'today' | '7d' | '30d'>('7d')
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'today' | '7d' | '30d' | 'all'>('7d')
   const [scheduledDate, setScheduledDate] = useState('')
   const [listTimeframe, setListTimeframe] = useState<'today' | '7d' | '30d'>('today')
   const [listStatus, setListStatus] = useState<'active' | 'backlog' | 'done' | 'future' | 'delegated'>('active')
@@ -594,6 +594,64 @@ function App() {
       }))
     }
 
+    if (analyticsTimeframe === 'all') {
+      const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
+      if (myTasks.length === 0) return []
+      
+      let earliest = new Date()
+      myTasks.forEach(t => {
+        const d = new Date(t.created_at)
+        if (d < earliest) earliest = d
+      })
+      
+      const months: { key: string, name: string, date: Date }[] = []
+      let current = new Date(earliest.getFullYear(), earliest.getMonth(), 1)
+      const now = new Date()
+      
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      while (current <= now) {
+        months.push({
+          key: `${current.getFullYear()}-${current.getMonth()}`,
+          name: monthNames[current.getMonth()],
+          date: new Date(current)
+        })
+        current.setMonth(current.getMonth() + 1)
+      }
+      
+      const dailyData: { [key: string]: number } = {}
+      months.forEach(m => {
+        dailyData[`${m.key}-active`] = 0
+        dailyData[`${m.key}-backlog`] = 0
+        dailyData[`${m.key}-done`] = 0
+      })
+      
+      myTasks.forEach(t => {
+        const d = new Date(t.created_at)
+        const key = `${d.getFullYear()}-${d.getMonth()}`
+        if (t.is_completed) {
+          dailyData[`${key}-done`] = (dailyData[`${key}-done`] || 0) + 1
+        } else {
+          const todayDate = new Date()
+          todayDate.setHours(0,0,0,0)
+          const dDate = new Date(t.created_at)
+          dDate.setHours(0,0,0,0)
+          if (dDate.getTime() >= todayDate.getTime()) {
+            dailyData[`${key}-active`] = (dailyData[`${key}-active`] || 0) + 1
+          } else {
+            dailyData[`${key}-backlog`] = (dailyData[`${key}-backlog`] || 0) + 1
+          }
+        }
+      })
+      
+      return months.map(m => ({
+        name: m.name,
+        active: dailyData[`${m.key}-active`] || 0,
+        backlog: dailyData[`${m.key}-backlog`] || 0,
+        done: dailyData[`${m.key}-done`] || 0,
+        future: 0
+      }))
+    }
+
     const daysCount = analyticsTimeframe === '7d' ? 7 : 30
     const dailyData: { [key: string]: number } = {}
     
@@ -661,7 +719,11 @@ function App() {
     const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
     
     const relevantTasks = myTasks.filter(t => {
+      if (analyticsTimeframe === 'all') return true;
       const d = new Date(t.created_at)
+      if (analyticsTimeframe === 'today') {
+        return d.toLocaleDateString() === now.toLocaleDateString()
+      }
       return d >= startDate && d <= now
     })
 
@@ -677,15 +739,33 @@ function App() {
 
   const completionData = useMemo(() => {
     const today = new Date().toLocaleDateString()
+    const now = new Date()
+    const startDate = new Date()
+    startDate.setHours(0, 0, 0, 0)
+
+    if (analyticsTimeframe === '7d') {
+      startDate.setDate(startDate.getDate() - 6)
+    } else if (analyticsTimeframe === '30d') {
+      startDate.setDate(startDate.getDate() - 29)
+    }
     
     // 0. Filter tasks for analytics (This is for the small pill bar graph)
     const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
     
+    const filteredTasks = myTasks.filter(t => {
+      if (analyticsTimeframe === 'all') return true
+      const d = new Date(t.created_at)
+      if (analyticsTimeframe === 'today') {
+        return d.toLocaleDateString() === now.toLocaleDateString()
+      }
+      return d >= startDate && d <= now
+    })
+
     // 1. Done Tasks
-    const done = myTasks.filter(t => t.is_completed).length
+    const done = filteredTasks.filter(t => t.is_completed).length
 
     // 2. Active Tasks (Split into Today vs Backlog)
-    const activeTasks = myTasks.filter(t => !t.is_completed)
+    const activeTasks = filteredTasks.filter(t => !t.is_completed)
     
     const activeToday = activeTasks.filter(t => {
       return new Date(t.created_at).toLocaleDateString() === today
@@ -714,7 +794,7 @@ function App() {
       { name: 'Backlog', value: backlog, color: '#ef4444' },
       { name: 'Future', value: future, color: '#60a5fa' }
     ]
-  }, [tasks, user])
+  }, [tasks, analyticsTimeframe, user])
 
   const myTasks = useMemo(() => tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id)), [tasks, user])
   const delegatedTasks = useMemo(() => tasks.filter(t => t.user_id === user?.id && t.assignee_id && t.assignee_id !== user?.id), [tasks, user])
@@ -1087,7 +1167,7 @@ function App() {
                   <div className="flex items-center gap-4 mt-2">
                     <p className="text-muted-foreground text-xl">Efficiency & Performance ✨</p>
                     <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
-                      {(['today', '7d', '30d'] as const).map((tf) => (
+                      {(['today', '7d', '30d', 'all'] as const).map((tf) => (
                         <button
                           key={tf}
                           onClick={() => setAnalyticsTimeframe(tf)}
@@ -1097,7 +1177,7 @@ function App() {
                             : 'text-white/30 hover:text-white'
                           }`}
                         >
-                          {tf}
+                          {tf === 'all' ? 'Total' : tf}
                         </button>
                       ))}
                     </div>
@@ -1109,7 +1189,7 @@ function App() {
           <div className="grid grid-cols-2 gap-4">
             <div className="glass p-6 rounded-3xl border border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
               <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest mb-1">
-                {analyticsTimeframe === 'today' ? 'Daily' : analyticsTimeframe === '7d' ? 'Weekly' : 'Monthly'} Flow
+                {analyticsTimeframe === 'today' ? 'Daily' : analyticsTimeframe === '7d' ? 'Weekly' : analyticsTimeframe === '30d' ? 'Monthly' : 'All-Time'} Flow
               </p>
               <h3 className="text-3xl font-black text-white px-1 leading-tight">{analyticsSummary.total} <span className="text-[10px] sm:text-sm font-medium text-muted-foreground block sm:inline">TASKS</span></h3>
             </div>

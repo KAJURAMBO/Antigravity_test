@@ -25,46 +25,46 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
     final today = DateTime(now.year, now.month, now.day);
 
     final tasks = allTasks.where((t) {
-      final taskDate = DateTime(t.createdAt.toLocal().year,
-          t.createdAt.toLocal().month, t.createdAt.toLocal().day);
+      final isAssignedToMe = t.assigneeId == apiService.user?.id ||
+          (t.assigneeId == null && t.userId == apiService.user?.id);
+      if (!isAssignedToMe) return false;
+
+      final targetDate = (t.dueDate ?? t.createdAt).toLocal();
+      final taskDateOnly =
+          DateTime(targetDate.year, targetDate.month, targetDate.day);
+
       if (_timeframe == 'today') {
-        return taskDate == today;
+        return taskDateOnly == today;
       } else if (_timeframe == '7d') {
-        final diff = today.difference(taskDate).inDays;
-        return diff >= 0 && diff <= 7;
+        final diff = today.difference(taskDateOnly).inDays;
+        return diff.abs() <= 7;
       } else if (_timeframe == '30d') {
-        final diff = today.difference(taskDate).inDays;
-        return diff >= 0 && diff <= 30;
+        final diff = today.difference(taskDateOnly).inDays;
+        return diff.abs() <= 30;
       }
-      return false;
+      return true;
     }).toList();
 
-    int totalTasks = tasks.length;
+
     int doneCount = tasks.where((t) => t.isCompleted).length;
-    int activeCount = tasks
-        .where((t) =>
-            !t.isCompleted &&
-            !DateTime(t.createdAt.toLocal().year, t.createdAt.toLocal().month,
-                    t.createdAt.toLocal().day)
-                .isBefore(today) &&
-            !DateTime(t.createdAt.toLocal().year, t.createdAt.toLocal().month,
-                    t.createdAt.toLocal().day)
-                .isAfter(today))
-        .length;
-    int backlogCount = allTasks
-        .where((t) =>
-            !t.isCompleted &&
-            DateTime(t.createdAt.toLocal().year, t.createdAt.toLocal().month,
-                    t.createdAt.toLocal().day)
-                .isBefore(today))
-        .length;
-    int futureCount = allTasks
-        .where((t) =>
-            !t.isCompleted &&
-            DateTime(t.createdAt.toLocal().year, t.createdAt.toLocal().month,
-                    t.createdAt.toLocal().day)
-                .isAfter(today))
-        .length;
+    int activeCount = tasks.where((t) {
+      final targetDate = (t.dueDate ?? t.createdAt).toLocal();
+      final taskDateOnly =
+          DateTime(targetDate.year, targetDate.month, targetDate.day);
+      return !t.isCompleted && taskDateOnly == today;
+    }).length;
+    int backlogCount = tasks.where((t) {
+      final targetDate = (t.dueDate ?? t.createdAt).toLocal();
+      final taskDateOnly =
+          DateTime(targetDate.year, targetDate.month, targetDate.day);
+      return !t.isCompleted && taskDateOnly.isBefore(today);
+    }).length;
+    int futureCount = tasks.where((t) {
+      final targetDate = (t.dueDate ?? t.createdAt).toLocal();
+      final taskDateOnly =
+          DateTime(targetDate.year, targetDate.month, targetDate.day);
+      return !t.isCompleted && taskDateOnly.isAfter(today);
+    }).length;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -84,6 +84,7 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
               DropdownMenuItem(value: 'today', child: Text('Today')),
               DropdownMenuItem(value: '7d', child: Text('Weekly')),
               DropdownMenuItem(value: '30d', child: Text('Monthly')),
+              DropdownMenuItem(value: 'all', child: Text('Total')),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _timeframe = val);
@@ -100,10 +101,6 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildStatCard('Total Tasks', totalTasks.toString(),
-                  Colors.blueAccent, theme,
-                  isFullWidth: true),
-              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
@@ -144,7 +141,9 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
                 child: BarChart(
                   BarChartData(
                     alignment: BarChartAlignment.spaceAround,
-                    maxY: (totalTasks == 0 ? 10 : totalTasks.toDouble() + 5),
+                    maxY: ([doneCount, activeCount, backlogCount, futureCount].reduce((a, b) => a > b ? a : b) == 0
+                        ? 10
+                        : [doneCount, activeCount, backlogCount, futureCount].reduce((a, b) => a > b ? a : b).toDouble() + 5),
                     barTouchData: BarTouchData(enabled: true),
                     titlesData: FlTitlesData(
                       show: true,
@@ -280,19 +279,66 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
                         sideTitles: SideTitles(
                           showTitles: true,
                           getTitlesWidget: (val, meta) {
-                            final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                            final dayIdx = val.toInt() % 7;
-                            return SideTitleWidget(
+                            if (val != val.toInt().toDouble()) return const SizedBox();
+
+                            if (_timeframe == 'today' || _timeframe == '7d') {
+                              final days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                              final now = DateTime.now();
+                              final pointDate = now.subtract(Duration(days: 6 - val.toInt()));
+                              if (val.toInt() < 0 || val.toInt() > 6) return const SizedBox();
+                              final dayIdx = (pointDate.weekday - 1) % 7;
+                              return SideTitleWidget(
                                 meta: meta,
-                                child: Text(days[dayIdx],
+                                child: Text('${days[dayIdx]} ${pointDate.day}',
                                     style: TextStyle(
-                                        color: theme.textDim, fontSize: 10)));
+                                        color: theme.textDim, fontSize: 9)),
+                              );
+                            } else if (_timeframe == '30d') {
+                              if (val.toInt() % 5 == 0) {
+                                final now = DateTime.now();
+                                final pointDate = now.subtract(Duration(days: 29 - val.toInt()));
+                                if (val.toInt() < 0 || val.toInt() > 29) return const SizedBox();
+                                return SideTitleWidget(
+                                  meta: meta,
+                                  child: Text('${pointDate.day}/${pointDate.month}',
+                                      style: TextStyle(
+                                          color: theme.textDim, fontSize: 8)),
+                                );
+                              }
+                              return const SizedBox();
+                            } else {
+                              // all-time Month labels
+                              final now = DateTime.now();
+                              final today = DateTime(now.year, now.month, now.day);
+                              DateTime earliest = today;
+                              for (var t in tasks) {
+                                final tOrig = (t.dueDate ?? t.createdAt).toLocal();
+                                if (tOrig.isBefore(earliest)) earliest = tOrig;
+                              }
+                              DateTime current = DateTime(earliest.year, earliest.month, 1);
+                              final List<DateTime> monthDates = [];
+                              while (!current.isAfter(today)) {
+                                monthDates.add(current);
+                                current = DateTime(current.year, current.month + 1, 1);
+                              }
+                              final idx = val.toInt();
+                              if (idx >= 0 && idx < monthDates.length) {
+                                final date = monthDates[idx];
+                                final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                return SideTitleWidget(
+                                  meta: meta,
+                                  child: Text(months[date.month - 1],
+                                      style: TextStyle(color: theme.textDim, fontSize: 8)),
+                                );
+                              }
+                              return const SizedBox();
+                            }
                           },
                         ),
                       ),
                     ),
                     borderData: FlBorderData(show: false),
-                    lineBarsData: _buildTrendLineData(apiService.tasks, theme),
+                    lineBarsData: _buildTrendLineData(tasks, theme),
                   ),
                 ),
               ),
@@ -341,34 +387,78 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
     final List<FlSpot> activeSpots = [];
     final List<FlSpot> backlogSpots = [];
 
-    for (int i = 6; i >= 0; i--) {
-      final date = today.subtract(Duration(days: i));
+    if (_timeframe == 'all') {
+      if (tasks.isEmpty) {
+        doneSpots.add(const FlSpot(0, 0));
+        activeSpots.add(const FlSpot(0, 0));
+        backlogSpots.add(const FlSpot(0, 0));
+      } else {
+        DateTime earliest = today;
+        for (var t in tasks) {
+          final tOrig = (t.dueDate ?? t.createdAt).toLocal();
+          if (tOrig.isBefore(earliest)) earliest = tOrig;
+        }
+        
+        int spotX = 0;
+        DateTime current = DateTime(earliest.year, earliest.month, 1);
+        while (!current.isAfter(today)) {
+          int doneCount = 0;
+          int activeCount = 0;
+          int backlogCount = 0;
 
-      int doneCount = 0;
-      int activeCount = 0;
-      int backlogCount = 0;
+          for (var t in tasks) {
+            final tOrig = (t.dueDate ?? t.createdAt).toLocal();
+            if (tOrig.year == current.year && tOrig.month == current.month) {
+              if (t.isCompleted) {
+                doneCount++;
+              } else {
+                if (!tOrig.isBefore(today)) {
+                  activeCount++;
+                } else {
+                  backlogCount++;
+                }
+              }
+            }
+          }
 
-      for (var t in tasks) {
-        final tOrig = t.createdAt.toLocal();
-        final tDate = DateTime(tOrig.year, tOrig.month, tOrig.day);
-        if (tDate.year == date.year &&
-            tDate.month == date.month &&
-            tDate.day == date.day) {
-          if (t.isCompleted) {
-            doneCount++;
-          } else {
-            if (!tDate.isBefore(today)) {
-              activeCount++;
+          doneSpots.add(FlSpot(spotX.toDouble(), doneCount.toDouble()));
+          activeSpots.add(FlSpot(spotX.toDouble(), activeCount.toDouble()));
+          backlogSpots.add(FlSpot(spotX.toDouble(), backlogCount.toDouble()));
+          
+          spotX++;
+          current = DateTime(current.year, current.month + 1, 1);
+        }
+      }
+    } else {
+      final daysCount = (_timeframe == 'today' || _timeframe == '7d') ? 7 : 30;
+      for (int i = daysCount - 1; i >= 0; i--) {
+        final date = today.subtract(Duration(days: i));
+
+        int doneCount = 0;
+        int activeCount = 0;
+        int backlogCount = 0;
+
+        for (var t in tasks) {
+          final tOrig = (t.dueDate ?? t.createdAt).toLocal();
+          final tDate = DateTime(tOrig.year, tOrig.month, tOrig.day);
+          if (tDate == date) {
+            if (t.isCompleted) {
+              doneCount++;
             } else {
-              backlogCount++;
+              if (!tDate.isBefore(today)) {
+                activeCount++;
+              } else {
+                backlogCount++;
+              }
             }
           }
         }
-      }
 
-      doneSpots.add(FlSpot((6 - i).toDouble(), doneCount.toDouble()));
-      activeSpots.add(FlSpot((6 - i).toDouble(), activeCount.toDouble()));
-      backlogSpots.add(FlSpot((6 - i).toDouble(), backlogCount.toDouble()));
+        final spotX = (daysCount - 1 - i).toDouble();
+        doneSpots.add(FlSpot(spotX, doneCount.toDouble()));
+        activeSpots.add(FlSpot(spotX, activeCount.toDouble()));
+        backlogSpots.add(FlSpot(spotX, backlogCount.toDouble()));
+      }
     }
 
     return [
