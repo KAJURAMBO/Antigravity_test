@@ -17,6 +17,7 @@ interface Task {
   updated_at: string | null
   user_id: number
   assignee_id?: number | null
+  due_date?: string | null
   ai_guidance?: string | null
 }
 
@@ -575,6 +576,7 @@ function App() {
           title: editTitle,
           description: editDescription || null,
           created_at: editDate ? new Date(editDate).toISOString() : selectedTask.created_at,
+          due_date: editDate ? new Date(editDate).toISOString() : (selectedTask.due_date || selectedTask.created_at),
           assignee_id: editAssigneeId || null
         })
       })
@@ -753,7 +755,7 @@ function App() {
       if (analyticsTimeframe === 'today') {
         return d.toLocaleDateString() === now.toLocaleDateString()
       }
-      return d >= startDate && d <= now
+      return d >= startDate
     })
 
     const completed = relevantTasks.filter(t => t.is_completed).length
@@ -787,7 +789,7 @@ function App() {
       if (analyticsTimeframe === 'today') {
         return d.toLocaleDateString() === now.toLocaleDateString()
       }
-      return d >= startDate && d <= now
+      return d >= startDate
     })
 
     // 1. Done Tasks
@@ -845,13 +847,13 @@ function App() {
       if (analyticsTimeframe === 'today') {
         return d.toLocaleDateString() === now.toLocaleDateString()
       }
-      return d >= startDate && d <= now
+      return d >= startDate
     })
 
     const done = relevantTasks.filter(t => t.is_completed).length
     
     const actToday = relevantTasks.filter(t => !t.is_completed && new Date(t.created_at).toLocaleDateString() === now.toLocaleDateString())
-    const futTasks = relevantTasks.filter(t => {
+    const futTasks = myTasks.filter(t => {
       if (t.is_completed) return false
       const d = new Date(t.created_at)
       d.setHours(0,0,0,0)
