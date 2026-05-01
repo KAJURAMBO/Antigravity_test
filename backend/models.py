@@ -137,6 +137,7 @@ class TaskUpdate(SQLModel):
     description: Optional[str] = None
     is_completed: Optional[bool] = None
     created_at: Optional[datetime] = None
+    due_date: Optional[datetime] = None
     assignee_id: Optional[int] = None
     ai_guidance: Optional[str] = None
     ai_guidance_history: Optional[List[dict]] = None

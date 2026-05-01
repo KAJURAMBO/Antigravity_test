@@ -211,7 +211,7 @@ class ApiService extends ChangeNotifier {
     return false;
   }
 
-  Future<bool> updateTask(int taskId, {bool? isCompleted, String? title, String? description, int? assigneeId, DateTime? createdAt}) async {
+  Future<bool> updateTask(int taskId, {bool? isCompleted, String? title, String? description, int? assigneeId, DateTime? createdAt, DateTime? dueDate}) async {
     if (!isAuthenticated) return false;
     try {
       final Map<String, dynamic> body = {};
@@ -220,6 +220,7 @@ class ApiService extends ChangeNotifier {
       if (description != null) body['description'] = description;
       if (assigneeId != null) body['assignee_id'] = assigneeId;
       if (createdAt != null) body['created_at'] = createdAt.toUtc().toIso8601String();
+      if (dueDate != null) body['due_date'] = dueDate.toUtc().toIso8601String();
 
       final response = await http.patch(
         Uri.parse("${AppConfig.baseUrl}/tasks/$taskId"),

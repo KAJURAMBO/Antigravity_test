@@ -749,6 +749,7 @@ class _BoardTabState extends State<BoardTab> {
                                     title: titleController.text,
                                     description: descController.text,
                                     createdAt: finalDate,
+                                    dueDate: finalDate,
                                     assigneeId: selectedAssignee);
                               } else {
                                 success = await api.createTask(
