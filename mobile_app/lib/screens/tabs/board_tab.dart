@@ -370,7 +370,8 @@ class _BoardTabState extends State<BoardTab> {
     final refineController = TextEditingController();
     final titleController = TextEditingController(text: task?.title ?? '');
     final descController = TextEditingController(text: task?.description ?? '');
-    DateTime selectedDate = task?.createdAt ?? DateTime.now();
+    final targetDate = (task?.dueDate ?? task?.createdAt) ?? DateTime.now();
+    DateTime selectedDate = targetDate.toLocal();
     int? selectedAssignee = task?.assigneeId;
 
     showModalBottomSheet(
@@ -827,6 +828,7 @@ class _BoardTabState extends State<BoardTab> {
       } else {
         if (!isAssignedToMe) return false;
 
+        // 1. Status Specific Logic
         if (_listStatus == 'future') {
           return isFuture && !t.isCompleted;
         }
@@ -836,10 +838,14 @@ class _BoardTabState extends State<BoardTab> {
         }
 
         if (_listStatus == 'active') {
-          return isToday && !t.isCompleted;
+          if (t.isCompleted) return false;
+          // Active in the context of the Board Tab means "Today"
+          return isToday;
         }
 
-        if (_listStatus == 'done' && !t.isCompleted) return false;
+        if (_listStatus == 'done') {
+          return t.isCompleted;
+        }
       }
 
       // Timeframe filters (Apply to whatever is left)
@@ -1097,7 +1103,7 @@ class _BoardTabState extends State<BoardTab> {
                                             icon: Icons.calendar_today,
                                             text: DateFormat('MMM d, h:mm a')
                                                 .format(
-                                                    task.createdAt.toLocal()),
+                                                    (task.dueDate ?? task.createdAt).toLocal()),
                                             color: theme.divider,
                                             textColor: theme.textDim,
                                             theme: theme,
