@@ -433,7 +433,14 @@ class ApiService extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body)['guidance'];
+        final guidance = jsonDecode(response.body)['guidance'];
+        // Update local task
+        final index = _tasks.indexWhere((t) => t.id == taskId);
+        if (index != -1) {
+          _tasks[index] = _tasks[index].copyWith(aiGuidance: guidance);
+          notifyListeners();
+        }
+        return guidance;
       }
     } catch (e) {
       debugPrint("AI Guidance Error: $e");
@@ -453,7 +460,14 @@ class ApiService extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body)['guidance'];
+        final guidance = jsonDecode(response.body)['guidance'];
+        // Update local task
+        final index = _tasks.indexWhere((t) => t.id == taskId);
+        if (index != -1) {
+          _tasks[index] = _tasks[index].copyWith(aiGuidance: guidance);
+          notifyListeners();
+        }
+        return guidance;
       }
     } catch (e) {
       debugPrint("AI Refine Guidance Error: $e");

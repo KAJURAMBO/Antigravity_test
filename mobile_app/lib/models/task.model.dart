@@ -26,6 +26,34 @@ class TaskModel {
     this.aiGuidanceHistory,
   });
 
+  TaskModel copyWith({
+    int? id,
+    String? title,
+    String? description,
+    bool? isCompleted,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    DateTime? dueDate,
+    int? userId,
+    int? assigneeId,
+    String? aiGuidance,
+    List<dynamic>? aiGuidanceHistory,
+  }) {
+    return TaskModel(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      isCompleted: isCompleted ?? this.isCompleted,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      dueDate: dueDate ?? this.dueDate,
+      userId: userId ?? this.userId,
+      assigneeId: assigneeId ?? this.assigneeId,
+      aiGuidance: aiGuidance ?? this.aiGuidance,
+      aiGuidanceHistory: aiGuidanceHistory ?? this.aiGuidanceHistory,
+    );
+  }
+
   factory TaskModel.fromJson(Map<String, dynamic> json) {
     return TaskModel(
       id: json['id'],
