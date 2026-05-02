@@ -1,7 +1,7 @@
 name: mobile_app
 description: "AI-Smart Todo: Conquer every task with confidence."
 publish_to: "none"
-version: 1.6.0+27
+version: 1.7.0+28
 
 environment:
   sdk: ">=3.2.0 <4.0.0"
