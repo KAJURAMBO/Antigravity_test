@@ -643,7 +643,15 @@ async def ai_refine_guidance(
         raise HTTPException(status_code=400, detail="No existing guidance to refine")
 
     # Initialize/Manage History from DB
-    history = list(task.ai_guidance_history) if task.ai_guidance_history else []
+    # ai_guidance_history can come back as a JSON string from some DB drivers — ensure it's always a list
+    raw_history = task.ai_guidance_history
+    if isinstance(raw_history, str):
+        try:
+            import json as _json
+            raw_history = _json.loads(raw_history)
+        except Exception:
+            raw_history = []
+    history = list(raw_history) if raw_history else []
     
     try:
         refined = await refine_task_guidance(
@@ -667,7 +675,9 @@ async def ai_refine_guidance(
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
+        import traceback
         print(f"AI Refine Error: {e}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail="AI service temporarily unavailable")
 
 # === Notification Digest Endpoint ===
