@@ -39,6 +39,34 @@ class _TeamTabState extends State<TeamTab> {
     }
   }
 
+  void _handleRemove(BuildContext context, int userId, String name) async {
+    final theme = context.read<ThemeProvider>().theme;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: theme.card,
+        title: Text('Remove Member?', style: TextStyle(color: theme.text)),
+        content: Text('Are you sure you want to remove $name from your squad?', style: TextStyle(color: theme.textDim)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final success = await context.read<ApiService>().removeMember(userId);
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$name removed from squad.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeProvider>().theme;
@@ -154,10 +182,20 @@ class _TeamTabState extends State<TeamTab> {
                             ],
                           ),
                           subtitle: Text(member.email, style: TextStyle(color: theme.textDim, fontSize: 12)),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: theme.divider, borderRadius: BorderRadius.circular(12)),
-                            child: Text(member.role.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.text)),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(color: theme.divider, borderRadius: BorderRadius.circular(12)),
+                                child: Text(member.role.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.text)),
+                              ),
+                              if (member.canRemove)
+                                IconButton(
+                                  icon: const Icon(Icons.person_remove_rounded, color: Colors.redAccent, size: 20),
+                                  onPressed: () => _handleRemove(context, member.id, member.fullName ?? member.email),
+                                ),
+                            ],
                           ),
                         ),
                       );

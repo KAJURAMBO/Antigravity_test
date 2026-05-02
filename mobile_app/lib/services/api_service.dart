@@ -16,7 +16,6 @@ class ApiService extends ChangeNotifier {
   UserModel? _user;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     serverClientId: '1060605959840-f76ettkbg62idbr4s03lv22bp0hesu7f.apps.googleusercontent.com',
-    // clientId is only needed on iOS; on Android, Play Services auto-resolves via SHA-1
     clientId: Platform.isIOS ? '1060605959840-0bbrdem82hpufeij1fr3be9v3vn5olbl.apps.googleusercontent.com' : null,
     scopes: ['email', 'profile'],
   );
@@ -315,6 +314,23 @@ class ApiService extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> removeMember(int userId) async {
+    if (!isAuthenticated) return false;
+    try {
+      final response = await http.delete(
+        Uri.parse("${AppConfig.baseUrl}/teams/members/$userId"),
+        headers: _headers,
+      );
+      if (response.statusCode == 200) {
+        await fetchMembers();
+        return true;
+      }
+    } catch (e) {
+      debugPrint("Remove Member Error: $e");
+    }
+    return false;
+  }
+
   Future<bool> updateProfile(String fullName, String bio) async {
     if (!isAuthenticated) return false;
     try {
@@ -384,7 +400,6 @@ class ApiService extends ChangeNotifier {
     return false;
   }
 
-  // --- AI FEATURES ---
   Future<Map<String, dynamic>> parseTaskWithAi(String message, List<Map<String, dynamic>> history) async {
     if (!isAuthenticated) return {};
     try {
