@@ -530,12 +530,179 @@ function App() {
     }
   }
 
+  const renderMarkdown = (text: string) => {
+    const lines = text.split('\n')
+    const blocks: React.ReactNode[] = []
+    let currentTable: string[] = []
+    let inTable = false
+
+    const flushTable = (key: string | number) => {
+      if (currentTable.length === 0) return
+
+      const headers = currentTable[0]
+        .split('|')
+        .map(h => h.trim())
+        .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+
+      const rows = currentTable.slice(2).map(rowStr =>
+        rowStr
+          .split('|')
+          .map(c => c.trim())
+          .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+      )
+
+      blocks.push(
+        <div key={`table-${key}`} className="my-3 overflow-x-auto rounded-2xl border border-purple-500/20 bg-black/40 shadow-inner">
+          <table className="min-w-full divide-y divide-purple-500/20 text-left text-xs">
+            <thead className="bg-purple-950/45 text-purple-300 font-extrabold uppercase tracking-wider">
+              <tr>
+                {headers.map((header, colIdx) => (
+                  <th key={colIdx} className="px-4 py-3 border-b border-purple-500/20 font-black">
+                    {renderTextWithBold(header)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-purple-500/10 text-purple-100/90 font-medium">
+              {rows.map((row, rowIdx) => (
+                <tr key={rowIdx} className="hover:bg-purple-500/5 transition-colors">
+                  {row.map((cell, cellIdx) => (
+                    <td key={cellIdx} className="px-4 py-3 whitespace-nowrap">
+                      {renderTextWithBold(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+      currentTable = []
+      inTable = false
+    }
+
+    const renderTextWithBold = (txt: string) => {
+      const parts = txt.split(/(\*\*.*?\*\*)/g)
+      return parts.map((part, j) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={j} className="text-white font-black">{part.slice(2, -2)}</strong>
+        }
+        return part
+      })
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        inTable = true
+        currentTable.push(trimmed)
+      } else {
+        if (inTable) {
+          flushTable(i)
+        }
+
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          const content = trimmed.substring(2)
+          blocks.push(
+            <ul key={`list-${i}`} className="list-disc pl-5 my-1 text-purple-100/80 leading-relaxed font-medium">
+              <li>{renderTextWithBold(content)}</li>
+            </ul>
+          )
+        } else if (trimmed.match(/^\d+\.\s/)) {
+          const content = trimmed.replace(/^\d+\.\s/, '')
+          blocks.push(
+            <ol key={`num-list-${i}`} className="list-decimal pl-5 my-1 text-purple-100/80 leading-relaxed font-medium">
+              <li>{renderTextWithBold(content)}</li>
+            </ol>
+          )
+        } else if (trimmed.startsWith('###')) {
+          blocks.push(
+            <h5 key={`h3-${i}`} className="text-xs font-black text-purple-300 mt-3 mb-1 uppercase tracking-wider">
+              {renderTextWithBold(trimmed.replace(/^###\s*/, ''))}
+            </h5>
+          )
+        } else if (trimmed.startsWith('##')) {
+          blocks.push(
+            <h4 key={`h2-${i}`} className="text-sm font-black text-white mt-4 mb-2">
+              {renderTextWithBold(trimmed.replace(/^##\s*/, ''))}
+            </h4>
+          )
+        } else if (trimmed === '') {
+          blocks.push(<div key={`spacer-${i}`} className="h-2" />)
+        } else {
+          blocks.push(
+            <p key={`p-${i}`} className="my-1 leading-relaxed">
+              {renderTextWithBold(line)}
+            </p>
+          )
+        }
+      }
+    }
+
+    if (inTable) {
+      flushTable('end')
+    }
+
+    return blocks
+  }
+
   const handleAiGuidance = async () => {
     if (!selectedTask) return
+    setAiGuidance('')
     setAiGuidanceLoading(true)
     try {
-      const data = await apiFetch(`/ai/task-guidance/${selectedTask.id}`)
-      setAiGuidance(data.guidance)
+      const headers: Record<string, string> = {
+        'Accept': 'text/event-stream',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      }
+      const response = await fetch(`${API_URL}/ai/task-guidance/${selectedTask.id}?stream=true`, {
+        headers,
+      })
+
+      if (response.status === 401) {
+        handleLogout()
+        throw new Error('Unauthorized')
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch AI guidance: ${response.statusText}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      if (!reader) {
+        throw new Error('No readable body stream found.')
+      }
+
+      let done = false
+      let buffer = ''
+      while (!done) {
+        const { value, done: doneReading } = await reader.read()
+        done = doneReading
+        if (value) {
+          buffer += decoder.decode(value, { stream: !done })
+          const lines = buffer.split('\n')
+          // Keep the last partial line in the buffer
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            const cleanedLine = line.trim()
+            if (cleanedLine.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(cleanedLine.slice(6))
+                if (data.error) {
+                  showToast(`AI Guidance error: ${data.error}`, 'error')
+                } else if (data.chunk) {
+                  setAiGuidance(prev => prev + data.chunk)
+                }
+              } catch (e) {
+                console.error('Error parsing stream line:', cleanedLine, e)
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('AI Guidance error:', error)
       showToast('AI service temporarily unavailable.', 'error')
@@ -548,16 +715,64 @@ function App() {
     if (!selectedTask || !aiRefineInput.trim() || !aiGuidance) return
     const feedback = aiRefineInput
     setAiRefineInput('')
+    setAiGuidance('')
     setAiGuidanceLoading(true)
     
     try {
-      const data = await apiFetch(`/ai/task-guidance/${selectedTask.id}/refine`, {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      }
+      const response = await fetch(`${API_URL}/ai/task-guidance/${selectedTask.id}/refine?stream=true`, {
         method: 'POST',
+        headers,
         body: JSON.stringify({
           user_feedback: feedback
         })
       })
-      setAiGuidance(data.guidance)
+
+      if (response.status === 401) {
+        handleLogout()
+        throw new Error('Unauthorized')
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to refine AI guidance: ${response.statusText}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      if (!reader) {
+        throw new Error('No readable body stream found.')
+      }
+
+      let done = false
+      let buffer = ''
+      while (!done) {
+        const { value, done: doneReading } = await reader.read()
+        done = doneReading
+        if (value) {
+          buffer += decoder.decode(value, { stream: !done })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            const cleanedLine = line.trim()
+            if (cleanedLine.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(cleanedLine.slice(6))
+                if (data.error) {
+                  showToast(`AI Guidance error: ${data.error}`, 'error')
+                } else if (data.chunk) {
+                  setAiGuidance(prev => prev + data.chunk)
+                }
+              } catch (e) {
+                console.error('Error parsing stream line:', cleanedLine, e)
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('AI Refine error:', error)
       showToast('AI service temporarily unavailable.', 'error')
@@ -2222,20 +2437,8 @@ function App() {
                       <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
                         <Bot size={14} /> AI Guidance
                       </h4>
-                      <div className="text-sm text-purple-100/80 leading-relaxed whitespace-pre-wrap font-medium space-y-1">
-                        {aiGuidance.split('\n').map((line, i) => {
-                          const parts = line.split(/(\*\*.*?\*\*)/g);
-                          return (
-                            <p key={i}>
-                              {parts.map((part, j) => {
-                                if (part.startsWith('**') && part.endsWith('**')) {
-                                  return <strong key={j} className="text-white font-black">{part.slice(2, -2)}</strong>;
-                                }
-                                return part;
-                              })}
-                            </p>
-                          );
-                        })}
+                      <div className="text-sm text-purple-100/80 leading-relaxed font-medium space-y-1">
+                        {renderMarkdown(aiGuidance)}
                       </div>
                       
                       <div className="flex items-center gap-2 mt-4 pt-4 border-t border-purple-500/10">

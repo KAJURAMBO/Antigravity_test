@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 from google import genai
 from google.genai import types, errors
-from openai import OpenAI
+from openai import OpenAI, AsyncOpenAI
 from .config import settings
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,16 @@ def _get_openrouter_client():
     if not settings.OPENROUTER_API_KEY:
         return None
     return OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=settings.OPENROUTER_API_KEY,
+    )
+
+
+def _get_async_openrouter_client():
+    """Lazily initialize the async OpenRouter client."""
+    if not settings.OPENROUTER_API_KEY:
+        return None
+    return AsyncOpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=settings.OPENROUTER_API_KEY,
     )
@@ -361,3 +371,147 @@ Please update the guidance to incorporate the user's feedback while keeping it p
             return or_response.choices[0].message.content.strip()
         else:
             raise e
+
+
+async def get_task_guidance_stream(
+    task_title: str, task_description: Optional[str] = None
+):
+    """
+    Generate practical step-by-step guidance on how to complete a task as an async stream.
+    Yields plain text chunks.
+    """
+    client = _get_client()
+
+    user_prompt = f"Task: {task_title}"
+    if task_description:
+        user_prompt += f"\nDetails: {task_description}"
+    user_prompt += (
+        "\n\nProvide clear, step-by-step instructions on how to complete this task."
+    )
+
+    try:
+        # Use the async client and generate_content_stream
+        stream = await client.aio.models.generate_content_stream(
+            model=MODEL,
+            contents=[
+                types.Content(
+                    role="user", parts=[types.Part.from_text(text=user_prompt)]
+                )
+            ],
+            config=types.GenerateContentConfig(
+                system_instruction=TASK_GUIDANCE_SYSTEM_PROMPT,
+                temperature=0.3,
+                max_output_tokens=1000,
+            ),
+        )
+        async for chunk in stream:
+            yield chunk.text or ""
+    except Exception as e:
+        logger.error(f"Gemini error in stream: {e}, falling back to OpenRouter async stream")
+        async_or_client = _get_async_openrouter_client()
+        if async_or_client:
+            messages = [
+                {"role": "system", "content": TASK_GUIDANCE_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ]
+            try:
+                or_stream = await async_or_client.chat.completions.create(
+                    model=FALLBACK_MODEL,
+                    messages=messages,
+                    temperature=0.3,
+                    max_tokens=1000,
+                    stream=True,
+                )
+                async for chunk in or_stream:
+                    content = chunk.choices[0].delta.content or ""
+                    if content:
+                        yield content
+            except Exception as fallback_err:
+                logger.error(f"Fallback stream error: {fallback_err}")
+                raise fallback_err
+        else:
+            raise e
+
+
+async def refine_task_guidance_stream(
+    task_title: str,
+    task_description: Optional[str],
+    previous_guidance: str,
+    user_feedback: str,
+    conversation_history: Optional[list] = None,
+):
+    """
+    Refine previously generated task guidance based on user feedback as an async stream.
+    Yields updated plain text chunks.
+    """
+    client = _get_client()
+
+    user_prompt = f"""Original Task: {task_title}
+{f"Details: {task_description}" if task_description else ""}
+
+Previous Guidance I Gave:
+{previous_guidance}
+
+User's Feedback/Preference:
+{user_feedback}
+
+Please update the guidance to incorporate the user's feedback while keeping it practical and actionable."""
+
+    # Build conversation contents
+    contents = []
+    if conversation_history:
+        for msg in conversation_history:
+            contents.append(
+                types.Content(
+                    role=msg["role"], parts=[types.Part.from_text(text=msg["text"])]
+                )
+            )
+
+    # Add current user message
+    contents.append(
+        types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])
+    )
+
+    try:
+        stream = await client.aio.models.generate_content_stream(
+            model=MODEL,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=TASK_GUIDANCE_REFINE_SYSTEM_PROMPT,
+                temperature=0.3,
+                max_output_tokens=1000,
+            ),
+        )
+        async for chunk in stream:
+            yield chunk.text or ""
+    except Exception as e:
+        logger.error(f"Gemini error in refine stream: {e}, falling back to OpenRouter async stream")
+        async_or_client = _get_async_openrouter_client()
+        if async_or_client:
+            role_map = {"model": "assistant", "user": "user"}
+            messages = [
+                {"role": "system", "content": TASK_GUIDANCE_REFINE_SYSTEM_PROMPT}
+            ]
+            for msg in conversation_history or []:
+                openai_role = role_map.get(msg["role"], msg["role"])
+                messages.append({"role": openai_role, "content": msg["text"]})
+            messages.append({"role": "user", "content": user_prompt})
+
+            try:
+                or_stream = await async_or_client.chat.completions.create(
+                    model=FALLBACK_MODEL,
+                    messages=messages,
+                    temperature=0.3,
+                    max_tokens=1000,
+                    stream=True,
+                )
+                async for chunk in or_stream:
+                    content = chunk.choices[0].delta.content or ""
+                    if content:
+                        yield content
+            except Exception as fallback_err:
+                logger.error(f"Fallback refine stream error: {fallback_err}")
+                raise fallback_err
+        else:
+            raise e
+

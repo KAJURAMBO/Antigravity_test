@@ -1,10 +1,11 @@
 from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from sqlmodel import Session, select, or_
 from typing import List, Optional
 from datetime import datetime, timezone
-from .database import smart_initialize_db, get_session
+from .database import smart_initialize_db, get_session, engine
 from .models import (
     Task,
     TaskCreate,
@@ -538,7 +539,7 @@ def bulk_update_tasks(
 
 # === AI-Powered Endpoints ===
 
-from .ai_service import parse_task_from_text, get_task_guidance, refine_task_guidance
+from .ai_service import parse_task_from_text, get_task_guidance, refine_task_guidance, get_task_guidance_stream, refine_task_guidance_stream
 
 
 class AIParseRequest(BaseModel):
@@ -596,16 +597,66 @@ async def ai_parse_task(
 @app.get("/ai/task-guidance/{task_id}")
 async def ai_task_guidance(
     task_id: int,
+    stream: bool = False,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    """Get AI-generated step-by-step guidance for completing a task. Return cached if exists."""
+    """Get AI-generated step-by-step guidance for completing a task. Return cached if exists or stream."""
     task = session.get(Task, task_id)
     if not task or (
         task.user_id != current_user.id and task.assignee_id != current_user.id
     ):
         raise HTTPException(status_code=404, detail="Task not found")
 
+    if stream:
+        if task.ai_guidance:
+            async def cached_generator():
+                import json
+                yield f"data: {json.dumps({'chunk': task.ai_guidance})}\n\n"
+            return StreamingResponse(
+                cached_generator(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache, no-transform",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                }
+            )
+
+        async def stream_generator():
+            import json
+            accumulated = []
+            try:
+                async for chunk in get_task_guidance_stream(
+                    task_title=task.title,
+                    task_description=task.description,
+                ):
+                    accumulated.append(chunk)
+                    yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                
+                # Save to database once completed successfully
+                full_guidance = "".join(accumulated).strip()
+                if full_guidance:
+                    with Session(engine) as db_session:
+                        db_task = db_session.get(Task, task_id)
+                        if db_task:
+                            db_task.ai_guidance = full_guidance
+                            db_session.add(db_task)
+                            db_session.commit()
+            except Exception as exc:
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+
+        return StreamingResponse(
+            stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-transform",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
+
+    # Non-streaming fallback
     if task.ai_guidance:
         return {"task_id": task_id, "guidance": task.ai_guidance}
 
@@ -629,6 +680,7 @@ async def ai_task_guidance(
 async def ai_refine_guidance(
     task_id: int,
     request: AIRefineRequest,
+    stream: bool = False,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -643,7 +695,6 @@ async def ai_refine_guidance(
         raise HTTPException(status_code=400, detail="No existing guidance to refine")
 
     # Initialize/Manage History from DB
-    # ai_guidance_history can come back as a JSON string from some DB drivers — ensure it's always a list
     raw_history = task.ai_guidance_history
     if isinstance(raw_history, str):
         try:
@@ -652,7 +703,50 @@ async def ai_refine_guidance(
         except Exception:
             raw_history = []
     history = list(raw_history) if raw_history else []
-    
+
+    if stream:
+        async def stream_generator():
+            import json
+            accumulated = []
+            try:
+                async for chunk in refine_task_guidance_stream(
+                    task_title=task.title,
+                    task_description=task.description,
+                    previous_guidance=task.ai_guidance,
+                    user_feedback=request.user_feedback,
+                    conversation_history=history,
+                ):
+                    accumulated.append(chunk)
+                    yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                
+                full_guidance = "".join(accumulated).strip()
+                if full_guidance:
+                    # Update history
+                    updated_history = list(history)
+                    updated_history.append({"role": "user", "text": request.user_feedback})
+                    updated_history.append({"role": "model", "text": full_guidance})
+                    
+                    with Session(engine) as db_session:
+                        db_task = db_session.get(Task, task_id)
+                        if db_task:
+                            db_task.ai_guidance = full_guidance
+                            db_task.ai_guidance_history = updated_history
+                            db_session.add(db_task)
+                            db_session.commit()
+            except Exception as exc:
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+
+        return StreamingResponse(
+            stream_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-transform",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
+
+    # Non-streaming fallback
     try:
         refined = await refine_task_guidance(
             task_title=task.title,

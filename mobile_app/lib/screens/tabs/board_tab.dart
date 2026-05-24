@@ -519,17 +519,23 @@ class _BoardTabState extends State<BoardTab> {
                                       setModalState(() {
                                         isLoadingGuidance = true;
                                         refineController.clear();
+                                        aiGuidance = ""; // Clear for new streaming result
                                       });
-                                      final newGuidance = await context
+                                      final stream = context
                                           .read<ApiService>()
-                                          .refineAiGuidance(task.id!, feedback);
-                                      if (mounted)
+                                          .refineAiGuidanceStream(task.id!, feedback);
+                                      await for (final chunk in stream) {
+                                        if (mounted) {
+                                          setModalState(() {
+                                            aiGuidance = (aiGuidance ?? "") + chunk;
+                                          });
+                                        }
+                                      }
+                                      if (mounted) {
                                         setModalState(() {
-                                          if (newGuidance != null) {
-                                            aiGuidance = newGuidance;
-                                          }
                                           isLoadingGuidance = false;
                                         });
+                                      }
                                     },
                                   )
                                 ],
@@ -564,15 +570,25 @@ class _BoardTabState extends State<BoardTab> {
                           onPressed: isLoadingGuidance
                               ? null
                               : () async {
-                                  setModalState(() => isLoadingGuidance = true);
-                                  final fetched = await context
+                                  setModalState(() {
+                                    isLoadingGuidance = true;
+                                    aiGuidance = ""; // Initialize empty for streaming
+                                  });
+                                  final stream = context
                                       .read<ApiService>()
-                                      .getAiGuidance(task.id!);
-                                  if (mounted)
+                                      .getAiGuidanceStream(task.id!);
+                                  await for (final chunk in stream) {
+                                    if (mounted) {
+                                      setModalState(() {
+                                        aiGuidance = (aiGuidance ?? "") + chunk;
+                                      });
+                                    }
+                                  }
+                                  if (mounted) {
                                     setModalState(() {
-                                      if (fetched != null) aiGuidance = fetched;
                                       isLoadingGuidance = false;
                                     });
+                                  }
                                 },
                         ),
                       ),

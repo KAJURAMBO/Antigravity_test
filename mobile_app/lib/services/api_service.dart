@@ -475,6 +475,111 @@ class ApiService extends ChangeNotifier {
     return null;
   }
 
+  Stream<String> getAiGuidanceStream(int taskId) async* {
+    if (!isAuthenticated) return;
+    final client = http.Client();
+    final request = http.Request(
+      "GET",
+      Uri.parse("${AppConfig.baseUrl}/ai/task-guidance/$taskId?stream=true"),
+    );
+    request.headers.addAll(_headers);
+
+    try {
+      final response = await client.send(request);
+      if (response.statusCode == 200) {
+        final lineStream = response.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter());
+
+        final accumulated = StringBuffer();
+        await for (final line in lineStream) {
+          final cleaned = line.trim();
+          if (cleaned.startsWith('data: ')) {
+            try {
+              final decoded = jsonDecode(cleaned.substring(6));
+              if (decoded['error'] != null) {
+                debugPrint("Stream error from server: ${decoded['error']}");
+              } else if (decoded['chunk'] != null) {
+                final chunk = decoded['chunk'] as String;
+                accumulated.write(chunk);
+                yield chunk;
+              }
+            } catch (e) {
+              debugPrint("Error parsing SSE line: $e");
+            }
+          }
+        }
+
+        final fullGuidance = accumulated.toString();
+        if (fullGuidance.isNotEmpty) {
+          final index = _tasks.indexWhere((t) => t.id == taskId);
+          if (index != -1) {
+            _tasks[index] = _tasks[index].copyWith(aiGuidance: fullGuidance);
+            notifyListeners();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("AI Guidance Stream Error: $e");
+    } finally {
+      client.close();
+    }
+  }
+
+  Stream<String> refineAiGuidanceStream(int taskId, String feedback) async* {
+    if (!isAuthenticated) return;
+    final client = http.Client();
+    final request = http.Request(
+      "POST",
+      Uri.parse("${AppConfig.baseUrl}/ai/task-guidance/$taskId/refine?stream=true"),
+    );
+    request.headers.addAll(_headers);
+    request.body = jsonEncode({
+      "user_feedback": feedback,
+    });
+
+    try {
+      final response = await client.send(request);
+      if (response.statusCode == 200) {
+        final lineStream = response.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter());
+
+        final accumulated = StringBuffer();
+        await for (final line in lineStream) {
+          final cleaned = line.trim();
+          if (cleaned.startsWith('data: ')) {
+            try {
+              final decoded = jsonDecode(cleaned.substring(6));
+              if (decoded['error'] != null) {
+                debugPrint("Stream error from server: ${decoded['error']}");
+              } else if (decoded['chunk'] != null) {
+                final chunk = decoded['chunk'] as String;
+                accumulated.write(chunk);
+                yield chunk;
+              }
+            } catch (e) {
+              debugPrint("Error parsing SSE line: $e");
+            }
+          }
+        }
+
+        final fullGuidance = accumulated.toString();
+        if (fullGuidance.isNotEmpty) {
+          final index = _tasks.indexWhere((t) => t.id == taskId);
+          if (index != -1) {
+            _tasks[index] = _tasks[index].copyWith(aiGuidance: fullGuidance);
+            notifyListeners();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("AI Refine Guidance Stream Error: $e");
+    } finally {
+      client.close();
+    }
+  }
+
   Future<void> logout() async {
     _token = null;
     _user = null;
