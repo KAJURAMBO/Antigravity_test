@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/api_service.dart';
 import '../../providers/theme_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -200,6 +201,81 @@ class _ProfileTabState extends State<ProfileTab> {
                 contentPadding: EdgeInsets.zero,
               ),
             ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: theme.divider),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('NOTIFICATION SETTINGS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.textDim)),
+                  const SizedBox(height: 8),
+                  _buildToggleItem(
+                    'Daily Digest', 
+                    'Receive morning summaries', 
+                    user.notifyDailyDigest, 
+                    (val) => apiService.updateSetting('notify_daily_digest', val),
+                    theme
+                  ),
+                  _buildToggleItem(
+                    'Today Reminders', 
+                    'Alerts for today\'s tasks', 
+                    user.notifyTodayTasks, 
+                    (val) => apiService.updateSetting('notify_today_tasks', val),
+                    theme
+                  ),
+                  _buildToggleItem(
+                    'Future Missions', 
+                    'Alerts for upcoming tasks', 
+                    user.notifyFutureTasks, 
+                    (val) => apiService.updateSetting('notify_future_tasks', val),
+                    theme
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: theme.divider),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('APP AVAILABILITY', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.textDim)),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () async {
+                      final url = Uri.parse('https://tt1r9jdm.status.cron-job.org/');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        const Icon(Icons.bar_chart, color: Colors.green, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'https://tt1r9jdm.status.cron-job.org/',
+                            style: TextStyle(fontSize: 14, color: theme.primary, decoration: TextDecoration.underline),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
@@ -238,6 +314,17 @@ class _ProfileTabState extends State<ProfileTab> {
           Text(value, style: TextStyle(fontSize: 16, color: theme.text)),
         ],
       ),
+    );
+  }
+
+  Widget _buildToggleItem(String title, String subtitle, bool value, Function(bool) onChanged, AppThemeColors theme) {
+    return SwitchListTile(
+      title: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.text)),
+      subtitle: Text(subtitle, style: TextStyle(fontSize: 11, color: theme.textDim)),
+      value: value,
+      onChanged: onChanged,
+      activeColor: theme.primary,
+      contentPadding: EdgeInsets.zero,
     );
   }
 }

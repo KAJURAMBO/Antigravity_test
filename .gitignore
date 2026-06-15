@@ -27,3 +27,8 @@ build/
 
 # Static assets (local uploads)
 static/
+
+# Secrets
+backend/service-account.json
+hackathon-2025-469804-c44ac292146e.json
+script.txt

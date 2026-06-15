@@ -1,7 +1,7 @@
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field, Relationship, Column, JSON
 from typing import Optional, List
 from datetime import datetime, timezone
-from pydantic import field_serializer
+from pydantic import field_serializer, field_validator
 
 
 class UserBase(SQLModel):
@@ -11,6 +11,10 @@ class UserBase(SQLModel):
     google_id: str = Field(index=True, unique=True)
     bio: Optional[str] = None
     theme: Optional[str] = "dark"
+    fcm_token: Optional[str] = None
+    notify_daily_digest: bool = True
+    notify_today_tasks: bool = True
+    notify_future_tasks: bool = False
 
 
 class TeamMember(SQLModel, table=True):
@@ -62,13 +66,37 @@ class TaskBase(SQLModel):
     description: Optional[str] = None
     is_completed: bool = False
     assignee_id: Optional[int] = None
+    due_date: Optional[datetime] = None
     ai_guidance: Optional[str] = None
+    ai_guidance_history: Optional[List[dict]] = Field(default=None, sa_column=Column(JSON))
+
+    @field_validator("ai_guidance_history", mode="before")
+    @classmethod
+    def validate_history(cls, v):
+        if v == "null":
+            return None
+        return v
 
 
 class Task(TaskBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
+
+    @field_validator("ai_guidance_history", mode="before")
+    @classmethod
+    def validate_history(cls, v):
+        if v == "null":
+            return None
+        if isinstance(v, str) and not v:
+            return None
+        return v
+
+    @field_serializer("ai_guidance_history")
+    def serialize_history(self, v):
+        if v == "null":
+            return None
+        return v
 
     # The creator of the task
     user_id: Optional[int] = Field(default=None, foreign_key="user.id")
@@ -83,7 +111,7 @@ class Task(TaskBase, table=True):
         sa_relationship_kwargs={"foreign_keys": "Task.assignee_id"},
     )
 
-    @field_serializer("created_at", "updated_at")
+    @field_serializer("created_at", "updated_at", "due_date")
     def serialize_dt(self, dt: Optional[datetime], _info):
         if dt is None:
             return None
@@ -96,14 +124,30 @@ class Task(TaskBase, table=True):
 class TaskCreate(TaskBase):
     created_at: Optional[datetime] = None
 
+    @field_validator("ai_guidance_history", mode="before")
+    @classmethod
+    def validate_history(cls, v):
+        if v == "null" or v == "":
+            return None
+        return v
+
 
 class TaskUpdate(SQLModel):
     title: Optional[str] = None
     description: Optional[str] = None
     is_completed: Optional[bool] = None
     created_at: Optional[datetime] = None
+    due_date: Optional[datetime] = None
     assignee_id: Optional[int] = None
     ai_guidance: Optional[str] = None
+    ai_guidance_history: Optional[List[dict]] = None
+
+    @field_validator("ai_guidance_history", mode="before")
+    @classmethod
+    def validate_history(cls, v):
+        if v == "null" or v == "":
+            return None
+        return v
 
 
 class UserUpdate(SQLModel):
@@ -111,6 +155,10 @@ class UserUpdate(SQLModel):
     bio: Optional[str] = None
     picture: Optional[str] = None
     theme: Optional[str] = None
+    fcm_token: Optional[str] = None
+    notify_daily_digest: Optional[bool] = None
+    notify_today_tasks: Optional[bool] = None
+    notify_future_tasks: Optional[bool] = None
 
 
 class UserRead(UserBase):

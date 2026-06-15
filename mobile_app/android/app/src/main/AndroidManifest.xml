@@ -1,8 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
     <application
-        android:label="Smart ToDo"
+        android:label="AI-Smart Todo"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -42,6 +43,15 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Added for url_launcher https support -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
         </intent>
     </queries>
 </manifest>

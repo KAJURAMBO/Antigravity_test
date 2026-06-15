@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon, X, Settings, Sparkles, Bot, Send, Loader2 } from 'lucide-react'
+import { Trash2, Check, Layout, Calendar, Clock, ListTodo, TrendingUp, BarChart, CheckCircle2, LogOut, User as UserIcon, X, Settings, Sparkles, Bot, Send, Loader2, Square, CheckSquare } from 'lucide-react'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { 
   AreaChart, Area, XAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -17,6 +17,7 @@ interface Task {
   updated_at: string | null
   user_id: number
   assignee_id?: number | null
+  due_date?: string | null
   ai_guidance?: string | null
 }
 
@@ -26,41 +27,62 @@ interface UserProfile {
   full_name: string | null
   picture: string | null
   bio: string | null
+  fcm_token?: string | null
+  notify_daily_digest: boolean
+  notify_today_tasks: boolean
+  notify_future_tasks: boolean
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDate, members, currentUser }: { 
+const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDate, members, currentUser, isSelectMode, isSelected, onToggleSelect }: { 
   task: Task, 
   toggleTask: (t: Task) => void, 
   deleteTask: (id: number) => void, 
   setSelectedTask: (t: Task) => void, 
   formatTaskDate: (d: string) => any,
   members: UserProfile[],
-  currentUser: UserProfile
+  currentUser: UserProfile,
+  isSelectMode: boolean,
+  isSelected: boolean,
+  onToggleSelect: (id: number) => void,
 }) => (
   <motion.div
     layout
     initial={{ opacity: 0, scale: 0.95, y: 20 }}
     animate={{ opacity: 1, scale: 1, y: 0 }}
     exit={{ opacity: 0, scale: 0.95, x: 20 }}
-    className={`glass-card p-1 relative border border-white/10 group ${task.is_completed ? 'opacity-40 grayscale-[0.8]' : ''}`}
+    className={`glass-card p-1 relative border group transition-all ${
+      isSelected 
+        ? 'border-red-500/60 bg-red-500/5 shadow-lg shadow-red-500/10' 
+        : 'border-white/10'
+    } ${task.is_completed ? 'opacity-40 grayscale-[0.8]' : ''}`}
+    onClick={isSelectMode ? () => onToggleSelect(task.id) : undefined}
   >
-    <div className={`p-6 rounded-[22px] flex items-start gap-6 bg-gradient-to-br ${task.is_completed ? 'from-white/[0.02] to-transparent' : 'from-white/[0.05] to-transparent'}`}>
-      <button
-        onClick={(e) => { e.stopPropagation(); toggleTask(task); }}
-        className={`flex-shrink-0 w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all transform active:scale-90 ${
-          task.is_completed
-            ? 'bg-gradient-to-br from-primary to-blue-600 border-transparent shadow-xl shadow-primary/30'
-            : 'border-white/10 hover:border-primary/50 bg-white/5'
-        }`}
-      >
-        {task.is_completed && <Check size={24} className="text-white font-black" />}
-      </button>
+    {isSelectMode && (
+      <div className={`absolute top-3 left-3 z-20 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+        isSelected ? 'bg-red-500 border-red-500' : 'border-white/30 bg-black/40'
+      }`}>
+        {isSelected && <Check size={14} className="text-white" />}
+      </div>
+    )}
+    <div className={`p-6 rounded-[22px] flex items-start gap-6 bg-gradient-to-br ${task.is_completed ? 'from-white/[0.02] to-transparent' : 'from-white/[0.05] to-transparent'} ${isSelectMode ? 'pl-12' : ''}`}>
+      {!isSelectMode && (
+        <button
+          onClick={(e) => { e.stopPropagation(); toggleTask(task); }}
+          className={`flex-shrink-0 w-10 h-10 rounded-2xl border-2 flex items-center justify-center transition-all transform active:scale-90 ${
+            task.is_completed
+              ? 'bg-gradient-to-br from-primary to-blue-600 border-transparent shadow-xl shadow-primary/30'
+              : 'border-white/10 hover:border-primary/50 bg-white/5'
+          }`}
+        >
+          {task.is_completed && <Check size={24} className="text-white font-black" />}
+        </button>
+      )}
 
       <div 
-        className="flex-1 min-w-0 cursor-pointer group/title"
-        onClick={() => setSelectedTask(task)}
+        className={`flex-1 min-w-0 ${isSelectMode ? 'cursor-pointer' : 'cursor-pointer group/title'}`}
+        onClick={isSelectMode ? () => onToggleSelect(task.id) : () => setSelectedTask(task)}
       >
         <h3 className={`text-2xl font-black truncate mb-2 transition-colors ${task.is_completed ? 'line-through text-muted-foreground' : 'text-white group-hover/title:text-primary'}`}>
           {task.title}
@@ -101,12 +123,14 @@ const TaskCard = ({ task, toggleTask, deleteTask, setSelectedTask, formatTaskDat
         </div>
       </div>
 
-      <button
-        onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
-        className="p-4 text-muted-foreground/30 hover:text-red-500 hover:bg-red-500/10 rounded-2xl transition-all transform hover:scale-110"
-      >
-        <Trash2 size={24} />
-      </button>
+      {!isSelectMode && (
+        <button
+          onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
+          className="p-4 text-muted-foreground/30 hover:text-red-500 hover:bg-red-500/10 rounded-2xl transition-all transform hover:scale-110"
+        >
+          <Trash2 size={24} />
+        </button>
+      )}
     </div>
   </motion.div>
 )
@@ -124,11 +148,17 @@ function App() {
   const [longLoading, setLongLoading] = useState(false)
   const [devUsername, setDevUsername] = useState('')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'today' | '7d' | '30d'>('7d')
+  const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'today' | '7d' | '30d' | 'all'>('7d')
   const [scheduledDate, setScheduledDate] = useState('')
   const [listTimeframe, setListTimeframe] = useState<'today' | '7d' | '30d'>('today')
   const [listStatus, setListStatus] = useState<'active' | 'backlog' | 'done' | 'future' | 'delegated'>('active')
   const [viewMode, setViewMode] = useState<'board' | 'team' | 'profile'>('board')
+
+  // Multi-select delete state
+  const [isSelectMode, setIsSelectMode] = useState(false)
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<number>>(new Set())
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false)
 
   // Edit Task States
   const [isEditingTask, setIsEditingTask] = useState(false)
@@ -335,13 +365,30 @@ function App() {
     
     setLoading(true)
     try {
+      const now = new Date();
+      const todayStr = now.toLocaleDateString('sv-SE'); // YYYY-MM-DD
+      
+      let finalCreatedAt;
+      if (!scheduledDate) {
+        // No date specified -> 5:30 AM (Midnight UTC)
+        const midnight = new Date(todayStr);
+        finalCreatedAt = midnight.toISOString();
+      } else if (scheduledDate === todayStr) {
+        // Picked Today -> Use ACTUAL TIME (Now)
+        finalCreatedAt = now.toISOString();
+      } else {
+        // Picked Future/Past -> Use that date's midnight
+        finalCreatedAt = new Date(scheduledDate).toISOString();
+      }
+
       const data = await apiFetch('/tasks/', {
         method: 'POST',
         body: JSON.stringify({
           title: newTask,
           description: newDescription || null,
           is_completed: false,
-          created_at: scheduledDate ? new Date(scheduledDate).toISOString() : new Date().toISOString(),
+          created_at: finalCreatedAt,
+          due_date: finalCreatedAt, // Use the already calculated UTC date
           assignee_id: assigneeId || null
         })
       })
@@ -379,6 +426,70 @@ function App() {
     }
   }
 
+  const handleToggleSelect = (id: number) => {
+    setSelectedTaskIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.size === 0) return
+    setIsBulkDeleting(true)
+    try {
+      await apiFetch('/tasks/bulk-delete', { 
+        method: 'POST',
+        body: JSON.stringify([...selectedTaskIds])
+      })
+      setTasks(tasks.filter(t => !selectedTaskIds.has(t.id)))
+      setSelectedTaskIds(new Set())
+      setIsSelectMode(false)
+      showToast(`${selectedTaskIds.size} task${selectedTaskIds.size > 1 ? 's' : ''} deleted! 🗑️`)
+    } catch (error) {
+      console.error('Bulk delete error:', error)
+      showToast('Failed to delete some tasks.', 'error')
+    } finally {
+      setIsBulkDeleting(false)
+    }
+  }
+
+  const handleBulkUpdateStatus = async (isCompleted: boolean) => {
+    if (selectedTaskIds.size === 0) return
+    setIsBulkUpdating(true)
+    try {
+      const updatedTasks = await apiFetch('/tasks/bulk-update', { 
+        method: 'POST',
+        body: JSON.stringify({
+          task_ids: [...selectedTaskIds],
+          is_completed: isCompleted
+        })
+      })
+      
+      setTasks(tasks.map(t => {
+        const updated = updatedTasks.find((u: Task) => u.id === t.id)
+        return updated ? { ...t, is_completed: updated.is_completed } : t
+      }))
+      
+      setSelectedTaskIds(new Set())
+      setIsSelectMode(false)
+      showToast(`${selectedTaskIds.size} task${selectedTaskIds.size > 1 ? 's' : ''} marked as ${isCompleted ? 'done' : 'active'}! 🎉`)
+    } catch (error) {
+      console.error('Bulk update error:', error)
+      showToast('Failed to update tasks.', 'error')
+    } finally {
+      setIsBulkUpdating(false)
+    }
+  }
+
+  const handleSelectAll = (taskList: Task[]) => {
+    if (selectedTaskIds.size === taskList.length) {
+      setSelectedTaskIds(new Set())
+    } else {
+      setSelectedTaskIds(new Set(taskList.map(t => t.id)))
+    }
+  }
+
   // --- AI Handlers ---
   const handleAiParseSubmit = async () => {
     if (!aiParseInput.trim()) return
@@ -394,7 +505,8 @@ function App() {
         method: 'POST',
         body: JSON.stringify({
           message: inputMessageText,
-          conversation_history: aiParseHistory
+          conversation_history: aiParseHistory,
+          local_time: new Date().toLocaleString('sv-SE').replace(' ', 'T')
         })
       })
 
@@ -418,12 +530,179 @@ function App() {
     }
   }
 
+  const renderMarkdown = (text: string) => {
+    const lines = text.split('\n')
+    const blocks: React.ReactNode[] = []
+    let currentTable: string[] = []
+    let inTable = false
+
+    const flushTable = (key: string | number) => {
+      if (currentTable.length === 0) return
+
+      const headers = currentTable[0]
+        .split('|')
+        .map(h => h.trim())
+        .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+
+      const rows = currentTable.slice(2).map(rowStr =>
+        rowStr
+          .split('|')
+          .map(c => c.trim())
+          .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+      )
+
+      blocks.push(
+        <div key={`table-${key}`} className="my-3 overflow-x-auto rounded-2xl border border-purple-500/20 bg-black/40 shadow-inner">
+          <table className="min-w-full divide-y divide-purple-500/20 text-left text-xs">
+            <thead className="bg-purple-950/45 text-purple-300 font-extrabold uppercase tracking-wider">
+              <tr>
+                {headers.map((header, colIdx) => (
+                  <th key={colIdx} className="px-4 py-3 border-b border-purple-500/20 font-black">
+                    {renderTextWithBold(header)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-purple-500/10 text-purple-100/90 font-medium">
+              {rows.map((row, rowIdx) => (
+                <tr key={rowIdx} className="hover:bg-purple-500/5 transition-colors">
+                  {row.map((cell, cellIdx) => (
+                    <td key={cellIdx} className="px-4 py-3 whitespace-nowrap">
+                      {renderTextWithBold(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+      currentTable = []
+      inTable = false
+    }
+
+    const renderTextWithBold = (txt: string) => {
+      const parts = txt.split(/(\*\*.*?\*\*)/g)
+      return parts.map((part, j) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={j} className="text-white font-black">{part.slice(2, -2)}</strong>
+        }
+        return part
+      })
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        inTable = true
+        currentTable.push(trimmed)
+      } else {
+        if (inTable) {
+          flushTable(i)
+        }
+
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          const content = trimmed.substring(2)
+          blocks.push(
+            <ul key={`list-${i}`} className="list-disc pl-5 my-1 text-purple-100/80 leading-relaxed font-medium">
+              <li>{renderTextWithBold(content)}</li>
+            </ul>
+          )
+        } else if (trimmed.match(/^\d+\.\s/)) {
+          const content = trimmed.replace(/^\d+\.\s/, '')
+          blocks.push(
+            <ol key={`num-list-${i}`} className="list-decimal pl-5 my-1 text-purple-100/80 leading-relaxed font-medium">
+              <li>{renderTextWithBold(content)}</li>
+            </ol>
+          )
+        } else if (trimmed.startsWith('###')) {
+          blocks.push(
+            <h5 key={`h3-${i}`} className="text-xs font-black text-purple-300 mt-3 mb-1 uppercase tracking-wider">
+              {renderTextWithBold(trimmed.replace(/^###\s*/, ''))}
+            </h5>
+          )
+        } else if (trimmed.startsWith('##')) {
+          blocks.push(
+            <h4 key={`h2-${i}`} className="text-sm font-black text-white mt-4 mb-2">
+              {renderTextWithBold(trimmed.replace(/^##\s*/, ''))}
+            </h4>
+          )
+        } else if (trimmed === '') {
+          blocks.push(<div key={`spacer-${i}`} className="h-2" />)
+        } else {
+          blocks.push(
+            <p key={`p-${i}`} className="my-1 leading-relaxed">
+              {renderTextWithBold(line)}
+            </p>
+          )
+        }
+      }
+    }
+
+    if (inTable) {
+      flushTable('end')
+    }
+
+    return blocks
+  }
+
   const handleAiGuidance = async () => {
     if (!selectedTask) return
+    setAiGuidance('')
     setAiGuidanceLoading(true)
     try {
-      const data = await apiFetch(`/ai/task-guidance/${selectedTask.id}`)
-      setAiGuidance(data.guidance)
+      const headers: Record<string, string> = {
+        'Accept': 'text/event-stream',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      }
+      const response = await fetch(`${API_URL}/ai/task-guidance/${selectedTask.id}?stream=true`, {
+        headers,
+      })
+
+      if (response.status === 401) {
+        handleLogout()
+        throw new Error('Unauthorized')
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch AI guidance: ${response.statusText}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      if (!reader) {
+        throw new Error('No readable body stream found.')
+      }
+
+      let done = false
+      let buffer = ''
+      while (!done) {
+        const { value, done: doneReading } = await reader.read()
+        done = doneReading
+        if (value) {
+          buffer += decoder.decode(value, { stream: !done })
+          const lines = buffer.split('\n')
+          // Keep the last partial line in the buffer
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            const cleanedLine = line.trim()
+            if (cleanedLine.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(cleanedLine.slice(6))
+                if (data.error) {
+                  showToast(`AI Guidance error: ${data.error}`, 'error')
+                } else if (data.chunk) {
+                  setAiGuidance(prev => prev + data.chunk)
+                }
+              } catch (e) {
+                console.error('Error parsing stream line:', cleanedLine, e)
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('AI Guidance error:', error)
       showToast('AI service temporarily unavailable.', 'error')
@@ -436,17 +715,64 @@ function App() {
     if (!selectedTask || !aiRefineInput.trim() || !aiGuidance) return
     const feedback = aiRefineInput
     setAiRefineInput('')
+    setAiGuidance('')
     setAiGuidanceLoading(true)
     
     try {
-      const data = await apiFetch(`/ai/task-guidance/${selectedTask.id}/refine`, {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      }
+      const response = await fetch(`${API_URL}/ai/task-guidance/${selectedTask.id}/refine?stream=true`, {
         method: 'POST',
+        headers,
         body: JSON.stringify({
-          previous_guidance: aiGuidance,
           user_feedback: feedback
         })
       })
-      setAiGuidance(data.guidance)
+
+      if (response.status === 401) {
+        handleLogout()
+        throw new Error('Unauthorized')
+      }
+
+      if (!response.ok) {
+        throw new Error(`Failed to refine AI guidance: ${response.statusText}`)
+      }
+
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      if (!reader) {
+        throw new Error('No readable body stream found.')
+      }
+
+      let done = false
+      let buffer = ''
+      while (!done) {
+        const { value, done: doneReading } = await reader.read()
+        done = doneReading
+        if (value) {
+          buffer += decoder.decode(value, { stream: !done })
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ''
+          for (const line of lines) {
+            const cleanedLine = line.trim()
+            if (cleanedLine.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(cleanedLine.slice(6))
+                if (data.error) {
+                  showToast(`AI Guidance error: ${data.error}`, 'error')
+                } else if (data.chunk) {
+                  setAiGuidance(prev => prev + data.chunk)
+                }
+              } catch (e) {
+                console.error('Error parsing stream line:', cleanedLine, e)
+              }
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('AI Refine error:', error)
       showToast('AI service temporarily unavailable.', 'error')
@@ -465,6 +791,7 @@ function App() {
           title: editTitle,
           description: editDescription || null,
           created_at: editDate ? new Date(editDate).toISOString() : selectedTask.created_at,
+          due_date: editDate ? new Date(editDate).toISOString() : (selectedTask.due_date || selectedTask.created_at),
           assignee_id: editAssigneeId || null
         })
       })
@@ -509,6 +836,64 @@ function App() {
         active: hourlyActive[i] || 0,
         backlog: 0,
         done: hourlyDone[i] || 0,
+        future: 0
+      }))
+    }
+
+    if (analyticsTimeframe === 'all') {
+      const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
+      if (myTasks.length === 0) return []
+      
+      let earliest = new Date()
+      myTasks.forEach(t => {
+        const d = new Date(t.created_at)
+        if (d < earliest) earliest = d
+      })
+      
+      const months: { key: string, name: string, date: Date }[] = []
+      let current = new Date(earliest.getFullYear(), earliest.getMonth(), 1)
+      const now = new Date()
+      
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      while (current <= now) {
+        months.push({
+          key: `${current.getFullYear()}-${current.getMonth()}`,
+          name: monthNames[current.getMonth()],
+          date: new Date(current)
+        })
+        current.setMonth(current.getMonth() + 1)
+      }
+      
+      const dailyData: { [key: string]: number } = {}
+      months.forEach(m => {
+        dailyData[`${m.key}-active`] = 0
+        dailyData[`${m.key}-backlog`] = 0
+        dailyData[`${m.key}-done`] = 0
+      })
+      
+      myTasks.forEach(t => {
+        const d = new Date(t.created_at)
+        const key = `${d.getFullYear()}-${d.getMonth()}`
+        if (t.is_completed) {
+          dailyData[`${key}-done`] = (dailyData[`${key}-done`] || 0) + 1
+        } else {
+          const todayDate = new Date()
+          todayDate.setHours(0,0,0,0)
+          const dDate = new Date(t.created_at)
+          dDate.setHours(0,0,0,0)
+          if (dDate.getTime() >= todayDate.getTime()) {
+            dailyData[`${key}-active`] = (dailyData[`${key}-active`] || 0) + 1
+          } else {
+            dailyData[`${key}-backlog`] = (dailyData[`${key}-backlog`] || 0) + 1
+          }
+        }
+      })
+      
+      return months.map(m => ({
+        name: m.name,
+        active: dailyData[`${m.key}-active`] || 0,
+        backlog: dailyData[`${m.key}-backlog`] || 0,
+        done: dailyData[`${m.key}-done`] || 0,
         future: 0
       }))
     }
@@ -580,8 +965,12 @@ function App() {
     const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
     
     const relevantTasks = myTasks.filter(t => {
+      if (analyticsTimeframe === 'all') return true;
       const d = new Date(t.created_at)
-      return d >= startDate && d <= now
+      if (analyticsTimeframe === 'today') {
+        return d.toLocaleDateString() === now.toLocaleDateString()
+      }
+      return d >= startDate
     })
 
     const completed = relevantTasks.filter(t => t.is_completed).length
@@ -596,15 +985,33 @@ function App() {
 
   const completionData = useMemo(() => {
     const today = new Date().toLocaleDateString()
+    const now = new Date()
+    const startDate = new Date()
+    startDate.setHours(0, 0, 0, 0)
+
+    if (analyticsTimeframe === '7d') {
+      startDate.setDate(startDate.getDate() - 6)
+    } else if (analyticsTimeframe === '30d') {
+      startDate.setDate(startDate.getDate() - 29)
+    }
     
     // 0. Filter tasks for analytics (This is for the small pill bar graph)
     const myTasks = tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id))
     
+    const filteredTasks = myTasks.filter(t => {
+      if (analyticsTimeframe === 'all') return true
+      const d = new Date(t.created_at)
+      if (analyticsTimeframe === 'today') {
+        return d.toLocaleDateString() === now.toLocaleDateString()
+      }
+      return d >= startDate
+    })
+
     // 1. Done Tasks
-    const done = myTasks.filter(t => t.is_completed).length
+    const done = filteredTasks.filter(t => t.is_completed).length
 
     // 2. Active Tasks (Split into Today vs Backlog)
-    const activeTasks = myTasks.filter(t => !t.is_completed)
+    const activeTasks = filteredTasks.filter(t => !t.is_completed)
     
     const activeToday = activeTasks.filter(t => {
       return new Date(t.created_at).toLocaleDateString() === today
@@ -633,35 +1040,63 @@ function App() {
       { name: 'Backlog', value: backlog, color: '#ef4444' },
       { name: 'Future', value: future, color: '#60a5fa' }
     ]
-  }, [tasks, user])
+  }, [tasks, analyticsTimeframe, user])
 
   const myTasks = useMemo(() => tasks.filter(t => t.assignee_id === user?.id || (!t.assignee_id && t.user_id === user?.id)), [tasks, user])
   const delegatedTasks = useMemo(() => tasks.filter(t => t.user_id === user?.id && t.assignee_id && t.assignee_id !== user?.id), [tasks, user])
 
-  const completedTasks = myTasks.filter(t => t.is_completed).length
-  const activeTasksTotal = myTasks.filter(t => !t.is_completed)
-  
-  const todayDateStr = new Date().toLocaleDateString()
-  const activeTodayTasks = activeTasksTotal.filter(t => new Date(t.created_at).toLocaleDateString() === todayDateStr)
-  // Backlog = Past Only (Exclude Today AND Future)
-  const backlogTasks = activeTasksTotal.filter(t => {
-    const d = new Date(t.created_at)
-    d.setHours(0,0,0,0)
-    const today = new Date()
-    today.setHours(0,0,0,0)
-    return d.getTime() < today.getTime()
-  })
-  const futureTasks = activeTasksTotal.filter(t => {
-    const d = new Date(t.created_at)
-    d.setHours(0,0,0,0)
-    const today = new Date()
-    today.setHours(0,0,0,0)
-    return d.getTime() > today.getTime()
-  })
-  
-  const activeTodayCount = activeTodayTasks.length
-  const backlogCount = backlogTasks.length
-  const futureCount = futureTasks.length
+  const { completedTasks, activeTodayCount, backlogCount, futureCount, backlogTasks, activeTodayTasks, futureTasks } = useMemo(() => {
+    const now = new Date()
+    const startDate = new Date()
+    startDate.setHours(0, 0, 0, 0)
+
+    if (analyticsTimeframe === '7d') {
+      startDate.setDate(startDate.getDate() - 6)
+    } else if (analyticsTimeframe === '30d') {
+      startDate.setDate(startDate.getDate() - 29)
+    }
+
+    const relevantTasks = myTasks.filter(t => {
+      if (analyticsTimeframe === 'all') return true
+      const d = new Date(t.created_at)
+      if (analyticsTimeframe === 'today') {
+        return d.toLocaleDateString() === now.toLocaleDateString()
+      }
+      return d >= startDate
+    })
+
+    const done = relevantTasks.filter(t => t.is_completed).length
+    
+    const actToday = relevantTasks.filter(t => !t.is_completed && new Date(t.created_at).toLocaleDateString() === now.toLocaleDateString())
+    const futTasks = myTasks.filter(t => {
+      if (t.is_completed) return false
+      const d = new Date(t.created_at)
+      d.setHours(0,0,0,0)
+      const checkDate = new Date()
+      checkDate.setHours(0,0,0,0)
+      return d.getTime() > checkDate.getTime()
+    })
+
+    // Backlog accumulates all outstanding incomplete tasks from all-time (prior to today)
+    const bTasks = myTasks.filter(t => {
+      if (t.is_completed) return false
+      const d = new Date(t.created_at)
+      d.setHours(0,0,0,0)
+      const today = new Date()
+      today.setHours(0,0,0,0)
+      return d.getTime() < today.getTime()
+    })
+
+    return {
+      completedTasks: done,
+      activeTodayCount: actToday.length,
+      backlogCount: bTasks.length,
+      futureCount: futTasks.length,
+      backlogTasks: bTasks,
+      activeTodayTasks: actToday,
+      futureTasks: futTasks
+    }
+  }, [myTasks, analyticsTimeframe])
 
   const [profileSaving, setProfileSaving] = useState(false)
 
@@ -716,7 +1151,7 @@ function App() {
       const isDelegatedByMe = t.user_id === user?.id && t.assignee_id && t.assignee_id !== user?.id
 
       if (listStatus === 'delegated') {
-        if (!isDelegatedByMe) return false
+        return isDelegatedByMe
       } else {
         // All other views (Active/Backlog/Done/Future) only show tasks assigned to me
         if (!isAssignedToMe) return false
@@ -817,6 +1252,21 @@ function App() {
     }
   }
 
+  const handleUpdateSetting = async (key: string, value: boolean) => {
+    if (!user) return
+    try {
+      const updated = await apiFetch('/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify({ [key]: value })
+      })
+      setUser(updated)
+      showToast('Settings synced! 📡')
+    } catch (error) {
+      console.error('Failed to update setting:', error)
+      showToast('Failed to sync setting.', 'error')
+    }
+  }
+
   const handlePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.[0]) return
     const formData = new FormData()
@@ -879,8 +1329,8 @@ function App() {
             <div className="w-24 h-24 bg-primary/20 rounded-[32px] flex items-center justify-center mx-auto mb-8">
               <Layout size={48} className="text-primary" />
             </div>
-            <h1 className="text-5xl font-black text-white tracking-tight">Focus Flow</h1>
-            <p className="text-xl text-muted-foreground font-medium">Elevate your productivity with a premium task management experience. ✨</p>
+            <h1 className="text-6xl font-black text-white tracking-tight">AI-Smart Todo</h1>
+            <p className="text-xl text-muted-foreground font-medium">Conquer every task with confidence.</p>
           </div>
 
           <div className="flex flex-col items-center gap-6">
@@ -920,6 +1370,19 @@ function App() {
             </div>
           )}
         </motion.div>
+        
+        {/* Footer Status Link */}
+        <div className="absolute bottom-8 left-0 right-0 text-center">
+          <a 
+            href="https://tt1r9jdm.status.cron-job.org/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-[10px] font-black text-white/20 hover:text-primary transition-colors uppercase tracking-[0.3em] flex items-center justify-center gap-2"
+          >
+            <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+            System Status & Availability
+          </a>
+        </div>
       </div>
     )
   }
@@ -978,7 +1441,7 @@ function App() {
                   <div className="flex items-center gap-4 mt-2">
                     <p className="text-muted-foreground text-xl">Efficiency & Performance ✨</p>
                     <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
-                      {(['today', '7d', '30d'] as const).map((tf) => (
+                      {(['today', '7d', '30d', 'all'] as const).map((tf) => (
                         <button
                           key={tf}
                           onClick={() => setAnalyticsTimeframe(tf)}
@@ -988,7 +1451,7 @@ function App() {
                             : 'text-white/30 hover:text-white'
                           }`}
                         >
-                          {tf}
+                          {tf === 'all' ? 'Total' : tf}
                         </button>
                       ))}
                     </div>
@@ -1000,7 +1463,7 @@ function App() {
           <div className="grid grid-cols-2 gap-4">
             <div className="glass p-6 rounded-3xl border border-white/5 bg-gradient-to-br from-white/[0.02] to-transparent">
               <p className="text-muted-foreground font-bold text-xs uppercase tracking-widest mb-1">
-                {analyticsTimeframe === 'today' ? 'Daily' : analyticsTimeframe === '7d' ? 'Weekly' : 'Monthly'} Flow
+                {analyticsTimeframe === 'today' ? 'Daily' : analyticsTimeframe === '7d' ? 'Weekly' : analyticsTimeframe === '30d' ? 'Monthly' : 'All-Time'} Flow
               </p>
               <h3 className="text-3xl font-black text-white px-1 leading-tight">{analyticsSummary.total} <span className="text-[10px] sm:text-sm font-medium text-muted-foreground block sm:inline">TASKS</span></h3>
             </div>
@@ -1138,6 +1601,69 @@ function App() {
                         />
                       </div>
                     </div>
+                    
+                    <div className="space-y-6 pt-6 border-t border-white/5">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Notification Preferences</h4>
+                        <div className="flex items-center gap-2 text-[10px] font-bold text-white/30 uppercase italic">
+                           <Bot size={12} className="text-primary" /> AI Managed Alerts
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="glass p-4 rounded-3xl border border-white/5 flex items-center justify-between group">
+                          <div>
+                            <p className="text-xs font-bold text-white">Daily Digest</p>
+                            <p className="text-[9px] text-white/30">Backlog & today's count</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            checked={user.notify_daily_digest}
+                            onChange={(e) => handleUpdateSetting('notify_daily_digest', e.target.checked)}
+                            className="w-10 h-6 appearance-none bg-white/5 rounded-full relative cursor-pointer checked:bg-primary transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white/40 before:rounded-full before:top-1 before:left-1 checked:before:left-5 before:transition-all"
+                          />
+                        </div>
+
+                        <div className="glass p-4 rounded-3xl border border-white/5 flex items-center justify-between group">
+                          <div>
+                            <p className="text-xs font-bold text-white">Task Delegation</p>
+                            <p className="text-[9px] text-white/30">When someone assigns you</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            checked={true}
+                            disabled
+                            className="w-10 h-6 appearance-none bg-primary/20 rounded-full relative cursor-not-allowed before:content-[''] before:absolute before:w-4 before:h-4 before:bg-primary before:rounded-full before:top-1 before:left-5 transition-all"
+                          />
+                        </div>
+
+                        <div className="glass p-4 rounded-3xl border border-white/5 flex items-center justify-between group">
+                          <div>
+                            <p className="text-xs font-bold text-white">Active Tasks</p>
+                            <p className="text-[9px] text-white/30">Reminder for today's tasks</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            checked={user.notify_today_tasks}
+                            onChange={(e) => handleUpdateSetting('notify_today_tasks', e.target.checked)}
+                            className="w-10 h-6 appearance-none bg-white/5 rounded-full relative cursor-pointer checked:bg-blue-500 transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white/40 before:rounded-full before:top-1 before:left-1 checked:before:left-5 before:transition-all"
+                          />
+                        </div>
+
+                        <div className="glass p-4 rounded-3xl border border-white/5 flex items-center justify-between group">
+                          <div>
+                            <p className="text-xs font-bold text-white">Future Planning</p>
+                            <p className="text-[9px] text-white/30">Alerts for upcoming missions</p>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            checked={user.notify_future_tasks}
+                            onChange={(e) => handleUpdateSetting('notify_future_tasks', e.target.checked)}
+                            className="w-10 h-6 appearance-none bg-white/5 rounded-full relative cursor-pointer checked:bg-purple-500 transition-all before:content-[''] before:absolute before:w-4 before:h-4 before:bg-white/40 before:rounded-full before:top-1 before:left-1 checked:before:left-5 before:transition-all"
+                          />
+                        </div>
+                      </div>
+                    </div>
 
                     <div className="flex items-center gap-4">
                       <button 
@@ -1176,6 +1702,17 @@ function App() {
                     >
                       Logout Session
                     </button>
+
+                    <div className="mt-8 pt-8 border-t border-white/5 space-y-4">
+                      <h4 className="text-[10px] font-black text-primary uppercase tracking-[0.2em] italic">System Performance</h4>
+                      <div className="glass p-4 rounded-2xl border border-white/5 flex items-center justify-between group cursor-pointer" onClick={() => window.open('https://tt1r9jdm.status.cron-job.org/', '_blank')}>
+                         <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-xs font-bold text-white/70">App Availability</span>
+                         </div>
+                         <BarChart size={14} className="text-primary group-hover:scale-110 transition-transform" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1491,8 +2028,8 @@ function App() {
               <div className="flex flex-col gap-2 sm:gap-3">
                 <label className="text-[9px] sm:text-[10px] font-black text-white/30 uppercase tracking-[0.2em] px-4">Schedule Objective (Optional)</label>
                 <input
-                  type="date"
-                  value={scheduledDate}
+                  type="datetime-local"
+                  value={scheduledDate ? scheduledDate.slice(0, 16) : ''}
                   onChange={(e) => setScheduledDate(e.target.value)}
                   className="input-premium h-10 sm:h-14 text-[10px] sm:text-xs px-3 sm:px-6 text-primary scheme-dark"
                 />
@@ -1561,15 +2098,73 @@ function App() {
                   {listStatus === 'future' ? 'Future' : listStatus === 'backlog' ? 'Backlog' : listTimeframe === 'today' ? "Today's" : listTimeframe.toUpperCase()} Focus 
                   <span className={`w-2 h-2 rounded-full ${listStatus === 'backlog' ? 'bg-red-500' : listStatus === 'active' ? 'bg-primary shadow-[0_0_8px_rgba(139,92,246,0.5)]' : listStatus === 'done' ? 'bg-green-500' : 'bg-blue-400'}`} />
                 </h2>
-                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${listStatus === 'backlog' ? 'bg-red-500/10 text-red-500' : listStatus === 'active' ? 'bg-primary/10 text-primary' : listStatus === 'done' ? 'bg-green-500/10 text-green-500' : 'bg-blue-400/10 text-blue-400'}`}>
-                  {listStatus === 'backlog' ? 'BACKLOG' : listStatus.toUpperCase()}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${listStatus === 'backlog' ? 'bg-red-500/10 text-red-500' : listStatus === 'active' ? 'bg-primary/10 text-primary' : listStatus === 'done' ? 'bg-green-500/10 text-green-500' : 'bg-blue-400/10 text-blue-400'}`}>
+                    {listStatus === 'backlog' ? 'BACKLOG' : listStatus.toUpperCase()}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setIsSelectMode(!isSelectMode)
+                      setSelectedTaskIds(new Set())
+                    }}
+                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                      isSelectMode ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-white/5 text-white/40 hover:text-white border border-white/5'
+                    }`}
+                  >
+                    {isSelectMode ? 'Cancel' : 'Select'}
+                  </button>
+                </div>
               </div>
+
+              {/* Bulk Delete Toolbar */}
+              <AnimatePresence>
+                {isSelectMode && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="flex items-center justify-between px-4 py-3 glass rounded-2xl border border-red-500/30 bg-red-500/5"
+                  >
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleSelectAll(categorizedTasks.focus)}
+                        className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-white/60 hover:text-white transition-colors"
+                      >
+                        {selectedTaskIds.size === categorizedTasks.focus.length && categorizedTasks.focus.length > 0
+                          ? <CheckSquare size={16} className="text-red-400" />
+                          : <Square size={16} />}
+                        Select All ({categorizedTasks.focus.length})
+                      </button>
+                      <span className="text-white/20">|</span>
+                      <span className="text-[11px] font-black text-red-400">{selectedTaskIds.size} selected</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleBulkUpdateStatus(listStatus !== 'done')}
+                        disabled={selectedTaskIds.size === 0 || isBulkUpdating}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95"
+                      >
+                        {isBulkUpdating ? <Loader2 size={14} className="animate-spin" /> : <CheckSquare size={14} />}
+                        Mark as {listStatus === 'done' ? 'Active' : 'Done'} {selectedTaskIds.size > 0 ? `(${selectedTaskIds.size})` : ''}
+                      </button>
+
+                      <button
+                        onClick={handleBulkDelete}
+                        disabled={selectedTaskIds.size === 0 || isBulkDeleting}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95"
+                      >
+                        {isBulkDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                        Delete {selectedTaskIds.size > 0 ? `(${selectedTaskIds.size})` : ''}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               
               <AnimatePresence mode="popLayout">
                 {categorizedTasks.focus.length > 0 ? (
                   categorizedTasks.focus.map((task) => (
-                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} />
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} isSelectMode={isSelectMode} isSelected={selectedTaskIds.has(task.id)} onToggleSelect={handleToggleSelect} />
                   ))
                 ) : (
                   <div className="text-center py-12 glass rounded-[32px] border border-white/5 opacity-50">
@@ -1590,7 +2185,7 @@ function App() {
                 
                 <AnimatePresence mode="popLayout">
                   {categorizedTasks.backlog.map((task) => (
-                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} />
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} isSelectMode={isSelectMode} isSelected={selectedTaskIds.has(task.id)} onToggleSelect={handleToggleSelect} />
                   ))}
                 </AnimatePresence>
               </div>
@@ -1607,7 +2202,7 @@ function App() {
                 
                 <AnimatePresence mode="popLayout">
                   {categorizedTasks.future.map((task) => (
-                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} />
+                    <TaskCard key={task.id} task={task} toggleTask={toggleTask} deleteTask={deleteTask} setSelectedTask={setSelectedTask} formatTaskDate={formatTaskDate} members={members} currentUser={user!} isSelectMode={isSelectMode} isSelected={selectedTaskIds.has(task.id)} onToggleSelect={handleToggleSelect} />
                   ))}
                 </AnimatePresence>
               </div>
@@ -1842,20 +2437,8 @@ function App() {
                       <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
                         <Bot size={14} /> AI Guidance
                       </h4>
-                      <div className="text-sm text-purple-100/80 leading-relaxed whitespace-pre-wrap font-medium space-y-1">
-                        {aiGuidance.split('\n').map((line, i) => {
-                          const parts = line.split(/(\*\*.*?\*\*)/g);
-                          return (
-                            <p key={i}>
-                              {parts.map((part, j) => {
-                                if (part.startsWith('**') && part.endsWith('**')) {
-                                  return <strong key={j} className="text-white font-black">{part.slice(2, -2)}</strong>;
-                                }
-                                return part;
-                              })}
-                            </p>
-                          );
-                        })}
+                      <div className="text-sm text-purple-100/80 leading-relaxed font-medium space-y-1">
+                        {renderMarkdown(aiGuidance)}
                       </div>
                       
                       <div className="flex items-center gap-2 mt-4 pt-4 border-t border-purple-500/10">
@@ -1883,8 +2466,8 @@ function App() {
                     <div className="flex flex-col gap-2 sm:gap-3">
                       <label className="text-[9px] sm:text-[10px] font-black text-white/20 uppercase tracking-widest px-4">Reschedule Objective</label>
                       <input
-                        type="date"
-                        value={editDate}
+                        type="datetime-local"
+                        value={editDate ? editDate.slice(0, 16) : ''}
                         onChange={(e) => setEditDate(e.target.value)}
                         className="w-full bg-white/[0.03] border border-white/10 rounded-2xl p-3 sm:p-4 text-sm sm:text-base text-white focus:border-primary outline-none transition-all scheme-dark"
                       />

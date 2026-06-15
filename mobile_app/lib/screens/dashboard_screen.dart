@@ -7,6 +7,7 @@ import 'tabs/board_tab.dart';
 import 'tabs/analytics_tab.dart';
 import 'tabs/team_tab.dart';
 import 'tabs/profile_tab.dart';
+import '../services/notification_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -15,7 +16,7 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
 
   final List<Widget> _tabs = [
@@ -28,10 +29,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ApiService>().fetchTasks();
-      context.read<ApiService>().fetchMembers();
+      final apiService = context.read<ApiService>();
+      apiService.fetchTasks();
+      apiService.fetchMembers();
+      
+      // Initialize notifications
+      NotificationService.initialize(apiService);
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (mounted) {
+        final apiService = context.read<ApiService>();
+        apiService.fetchTasks();
+        apiService.fetchMembers();
+        NotificationService.initialize(apiService);
+      }
+    }
   }
 
   @override

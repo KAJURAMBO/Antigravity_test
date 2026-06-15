@@ -16,7 +16,6 @@ class ApiService extends ChangeNotifier {
   UserModel? _user;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     serverClientId: '1060605959840-f76ettkbg62idbr4s03lv22bp0hesu7f.apps.googleusercontent.com',
-    // clientId is only needed on iOS; on Android, Play Services auto-resolves via SHA-1
     clientId: Platform.isIOS ? '1060605959840-0bbrdem82hpufeij1fr3be9v3vn5olbl.apps.googleusercontent.com' : null,
     scopes: ['email', 'profile'],
   );
@@ -187,6 +186,7 @@ class ApiService extends ChangeNotifier {
   Future<bool> createTask(String title, String? description, DateTime? createdAt, int? assigneeId) async {
     if (!isAuthenticated) return false;
     try {
+      final dt = createdAt ?? DateTime.now();
       final response = await http.post(
         Uri.parse("${AppConfig.baseUrl}/tasks/"),
         headers: _headers,
@@ -194,7 +194,8 @@ class ApiService extends ChangeNotifier {
           "title": title,
           "description": description,
           "is_completed": false,
-          "created_at": (createdAt ?? DateTime.now()).toUtc().toIso8601String(),
+          "created_at": dt.toUtc().toIso8601String(),
+          "due_date": dt.toUtc().toIso8601String(),
           if (assigneeId != null) "assignee_id": assigneeId,
         }),
       );
@@ -209,7 +210,7 @@ class ApiService extends ChangeNotifier {
     return false;
   }
 
-  Future<bool> updateTask(int taskId, {bool? isCompleted, String? title, String? description, int? assigneeId, DateTime? createdAt}) async {
+  Future<bool> updateTask(int taskId, {bool? isCompleted, String? title, String? description, int? assigneeId, DateTime? createdAt, DateTime? dueDate}) async {
     if (!isAuthenticated) return false;
     try {
       final Map<String, dynamic> body = {};
@@ -218,6 +219,7 @@ class ApiService extends ChangeNotifier {
       if (description != null) body['description'] = description;
       if (assigneeId != null) body['assignee_id'] = assigneeId;
       if (createdAt != null) body['created_at'] = createdAt.toUtc().toIso8601String();
+      if (dueDate != null) body['due_date'] = dueDate.toUtc().toIso8601String();
 
       final response = await http.patch(
         Uri.parse("${AppConfig.baseUrl}/tasks/$taskId"),
@@ -253,6 +255,47 @@ class ApiService extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> bulkDeleteTasks(List<int> taskIds) async {
+    if (!isAuthenticated || taskIds.isEmpty) return false;
+    try {
+      final response = await http.post(
+        Uri.parse("${AppConfig.baseUrl}/tasks/bulk-delete"),
+        headers: _headers,
+        body: jsonEncode(taskIds),
+      );
+
+      if (response.statusCode == 204) {
+        await fetchTasks();
+        return true;
+      }
+    } catch (e) {
+      debugPrint("Bulk Delete Error: $e");
+    }
+    return false;
+  }
+
+  Future<bool> bulkUpdateTasks(List<int> taskIds, bool isCompleted) async {
+    if (!isAuthenticated || taskIds.isEmpty) return false;
+    try {
+      final response = await http.post(
+        Uri.parse("${AppConfig.baseUrl}/tasks/bulk-update"),
+        headers: _headers,
+        body: jsonEncode({
+          'task_ids': taskIds,
+          'is_completed': isCompleted,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        await fetchTasks();
+        return true;
+      }
+    } catch (e) {
+      debugPrint("Bulk Update Error: $e");
+    }
+    return false;
+  }
+
   Future<bool> inviteMember(String email) async {
     if (!isAuthenticated) return false;
     try {
@@ -267,6 +310,23 @@ class ApiService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint("Invite Member Error: $e");
+    }
+    return false;
+  }
+
+  Future<bool> removeMember(int userId) async {
+    if (!isAuthenticated) return false;
+    try {
+      final response = await http.delete(
+        Uri.parse("${AppConfig.baseUrl}/teams/members/$userId"),
+        headers: _headers,
+      );
+      if (response.statusCode == 200) {
+        await fetchMembers();
+        return true;
+      }
+    } catch (e) {
+      debugPrint("Remove Member Error: $e");
     }
     return false;
   }
@@ -288,6 +348,29 @@ class ApiService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint("Update Profile Error: $e");
+    }
+    return false;
+  }
+
+  Future<bool> updateFcmToken(String token) async {
+    return updateSetting("fcm_token", token);
+  }
+
+  Future<bool> updateSetting(String key, dynamic value) async {
+    if (!isAuthenticated) return false;
+    try {
+      final response = await http.patch(
+        Uri.parse("${AppConfig.baseUrl}/users/me"),
+        headers: _headers,
+        body: jsonEncode({key: value}),
+      );
+      if (response.statusCode == 200) {
+        _user = UserModel.fromJson(jsonDecode(response.body));
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint("Update Setting Error: $e");
     }
     return false;
   }
@@ -317,7 +400,6 @@ class ApiService extends ChangeNotifier {
     return false;
   }
 
-  // --- AI FEATURES ---
   Future<Map<String, dynamic>> parseTaskWithAi(String message, List<Map<String, dynamic>> history) async {
     if (!isAuthenticated) return {};
     try {
@@ -327,6 +409,7 @@ class ApiService extends ChangeNotifier {
         body: jsonEncode({
           "message": message,
           "conversation_history": history,
+          "local_time": DateTime.now().toIso8601String(),
         }),
       );
 
@@ -350,7 +433,14 @@ class ApiService extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body)['guidance'];
+        final guidance = jsonDecode(response.body)['guidance'];
+        // Update local task
+        final index = _tasks.indexWhere((t) => t.id == taskId);
+        if (index != -1) {
+          _tasks[index] = _tasks[index].copyWith(aiGuidance: guidance);
+          notifyListeners();
+        }
+        return guidance;
       }
     } catch (e) {
       debugPrint("AI Guidance Error: $e");
@@ -358,25 +448,136 @@ class ApiService extends ChangeNotifier {
     return null;
   }
 
-  Future<String?> refineAiGuidance(int taskId, String previousGuidance, String feedback) async {
+  Future<String?> refineAiGuidance(int taskId, String feedback) async {
     if (!isAuthenticated) return null;
     try {
       final response = await http.post(
         Uri.parse("${AppConfig.baseUrl}/ai/task-guidance/$taskId/refine"),
         headers: _headers,
         body: jsonEncode({
-          "previous_guidance": previousGuidance,
           "user_feedback": feedback,
         }),
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body)['guidance'];
+        final guidance = jsonDecode(response.body)['guidance'];
+        // Update local task
+        final index = _tasks.indexWhere((t) => t.id == taskId);
+        if (index != -1) {
+          _tasks[index] = _tasks[index].copyWith(aiGuidance: guidance);
+          notifyListeners();
+        }
+        return guidance;
       }
     } catch (e) {
       debugPrint("AI Refine Guidance Error: $e");
     }
     return null;
+  }
+
+  Stream<String> getAiGuidanceStream(int taskId) async* {
+    if (!isAuthenticated) return;
+    final client = http.Client();
+    final request = http.Request(
+      "GET",
+      Uri.parse("${AppConfig.baseUrl}/ai/task-guidance/$taskId?stream=true"),
+    );
+    request.headers.addAll(_headers);
+
+    try {
+      final response = await client.send(request);
+      if (response.statusCode == 200) {
+        final lineStream = response.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter());
+
+        final accumulated = StringBuffer();
+        await for (final line in lineStream) {
+          final cleaned = line.trim();
+          if (cleaned.startsWith('data: ')) {
+            try {
+              final decoded = jsonDecode(cleaned.substring(6));
+              if (decoded['error'] != null) {
+                debugPrint("Stream error from server: ${decoded['error']}");
+              } else if (decoded['chunk'] != null) {
+                final chunk = decoded['chunk'] as String;
+                accumulated.write(chunk);
+                yield chunk;
+              }
+            } catch (e) {
+              debugPrint("Error parsing SSE line: $e");
+            }
+          }
+        }
+
+        final fullGuidance = accumulated.toString();
+        if (fullGuidance.isNotEmpty) {
+          final index = _tasks.indexWhere((t) => t.id == taskId);
+          if (index != -1) {
+            _tasks[index] = _tasks[index].copyWith(aiGuidance: fullGuidance);
+            notifyListeners();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("AI Guidance Stream Error: $e");
+    } finally {
+      client.close();
+    }
+  }
+
+  Stream<String> refineAiGuidanceStream(int taskId, String feedback) async* {
+    if (!isAuthenticated) return;
+    final client = http.Client();
+    final request = http.Request(
+      "POST",
+      Uri.parse("${AppConfig.baseUrl}/ai/task-guidance/$taskId/refine?stream=true"),
+    );
+    request.headers.addAll(_headers);
+    request.body = jsonEncode({
+      "user_feedback": feedback,
+    });
+
+    try {
+      final response = await client.send(request);
+      if (response.statusCode == 200) {
+        final lineStream = response.stream
+            .transform(utf8.decoder)
+            .transform(const LineSplitter());
+
+        final accumulated = StringBuffer();
+        await for (final line in lineStream) {
+          final cleaned = line.trim();
+          if (cleaned.startsWith('data: ')) {
+            try {
+              final decoded = jsonDecode(cleaned.substring(6));
+              if (decoded['error'] != null) {
+                debugPrint("Stream error from server: ${decoded['error']}");
+              } else if (decoded['chunk'] != null) {
+                final chunk = decoded['chunk'] as String;
+                accumulated.write(chunk);
+                yield chunk;
+              }
+            } catch (e) {
+              debugPrint("Error parsing SSE line: $e");
+            }
+          }
+        }
+
+        final fullGuidance = accumulated.toString();
+        if (fullGuidance.isNotEmpty) {
+          final index = _tasks.indexWhere((t) => t.id == taskId);
+          if (index != -1) {
+            _tasks[index] = _tasks[index].copyWith(aiGuidance: fullGuidance);
+            notifyListeners();
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("AI Refine Guidance Stream Error: $e");
+    } finally {
+      client.close();
+    }
   }
 
   Future<void> logout() async {

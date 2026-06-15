@@ -1,0 +1,70 @@
+name: Deploy to Google Play (Closed Testing)
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers when you push a tag starting with v (e.g. v1.2.5)
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy:
+    name: Build & Ship to Closed Testing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Get Flutter Packages
+        run: flutter pub get
+        working-directory: mobile_app
+
+      - name: Decode Android Keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > mobile_app/android/app/upload-keystore.jks
+
+      - name: Decode Google Services JSON
+        run: echo "${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}" | base64 --decode > mobile_app/android/app/google-services.json
+
+      - name: Create key.properties
+        run: |
+          echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" > mobile_app/android/key.properties
+          echo "keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}" >> mobile_app/android/key.properties
+          echo "keyAlias=${{ secrets.ANDROID_KEYSTORE_ALIAS }}" >> mobile_app/android/key.properties
+          echo "storeFile=../app/upload-keystore.jks" >> mobile_app/android/key.properties
+
+      - name: Build Release App Bundle (.aab)
+        run: flutter build appbundle --release
+        working-directory: mobile_app
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEYSTORE_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Create Release Notes
+        run: |
+          mkdir -p mobile_app/android/whatsnew
+          git log -1 --pretty=%s > mobile_app/android/whatsnew/whatsnew-en-US
+
+      - name: Upload to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.rahma.aismartodo
+          releaseFiles: mobile_app/build/app/outputs/bundle/release/app-release.aab
+          track: alpha # alpha = Closed Testing
+          status: completed
+          whatsNewDirectory: mobile_app/android/whatsnew

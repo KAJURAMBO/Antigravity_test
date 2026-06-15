@@ -55,8 +55,41 @@ def smart_initialize_db():
                 tmp_session.execute(text("ALTER TABLE task ADD COLUMN ai_guidance VARCHAR"))
                 tmp_session.commit()
 
+        if "ai_guidance_history" not in task_columns:
+            print("Missing 'ai_guidance_history' in task table. Adding it gracefully...")
+            with Session(engine) as tmp_session:
+                tmp_session.execute(text("ALTER TABLE task ADD COLUMN ai_guidance_history TEXT"))
+                tmp_session.commit()
+
+        is_postgres = engine.url.drivername.startswith("postgresql")
+        dt_type = "TIMESTAMP" if is_postgres else "DATETIME"
+        bool_true = "TRUE" if is_postgres else "1"
+        bool_false = "FALSE" if is_postgres else "0"
+
+        if "due_date" not in task_columns:
+            print("Missing 'due_date' in task table. Adding it gracefully...")
+            with Session(engine) as tmp_session:
+                tmp_session.execute(text(f"ALTER TABLE task ADD COLUMN due_date {dt_type}"))
+                tmp_session.commit()
+
         # Check for new columns in User
         user_columns = [c["name"] for c in inspector.get_columns("user")]
+        
+        # Helper to add user columns
+        user_new_cols = {
+            "fcm_token": "VARCHAR",
+            "notify_daily_digest": f"BOOLEAN DEFAULT {bool_true}",
+            "notify_today_tasks": f"BOOLEAN DEFAULT {bool_true}",
+            "notify_future_tasks": f"BOOLEAN DEFAULT {bool_false}"
+        }
+        
+        for col, col_type in user_new_cols.items():
+            if col not in user_columns:
+                print(f"Missing '{col}' in user table. Adding it gracefully...")
+                with Session(engine) as tmp_session:
+                    tmp_session.execute(text(f"ALTER TABLE \"user\" ADD COLUMN {col} {col_type}"))
+                    tmp_session.commit()
+
         if "bio" not in user_columns:
             print("Missing 'bio' in user table. Resetting database...")
             reset_db_and_tables()
